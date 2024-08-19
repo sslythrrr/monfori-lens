@@ -90,16 +90,28 @@ class _AlbumPageState extends State<AlbumPage> {
     setState(() {});
   }
 
-  void _openPhotoDetail(AssetEntity photo, int index, List<AssetEntity> photoList) {
+void _openPhotoDetail(AssetEntity photo, int index, List<AssetEntity> photos) {
+  List<AssetEntity> allPhotos = _getAllPhotos();
+
+  int overallIndex = allPhotos.indexOf(photo);
+
   Navigator.push(
     context,
     MaterialPageRoute(
       builder: (context) => ViewPhotoScreen(
-        photoList: photoList,
-        initialIndex: index,
+        photoList: allPhotos,
+        initialIndex: overallIndex,
       ),
     ),
   );
+}
+
+List<AssetEntity> _getAllPhotos() {
+  List<AssetEntity> allPhotos = [];
+  for (var photos in _groupedPhotos.values) {
+    allPhotos.addAll(photos);
+  }
+  return allPhotos;
 }
 
   @override
