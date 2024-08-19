@@ -1,4 +1,4 @@
-// ignore_for_file: library_private_types_in_public_api, use_build_context_synchronously, prefer_const_constructors
+// ignore_for_file: library_private_types_in_public_api, use_build_context_synchronously
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -52,6 +52,7 @@ class _CameraPageState extends State<CameraPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: FutureBuilder<void>(
         future: _initializeControllerFuture,
         builder: (context, snapshot) {
@@ -74,16 +75,14 @@ class _CameraPageState extends State<CameraPage> {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Container(
-        height: MediaQuery.of(context).size.height * 0.20,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          color: Colors.black.withOpacity(0.8),
-        ),
+        height: MediaQuery.of(context).size.height * 0.2,
+        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+        color: Colors.black.withOpacity(0.6),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildIconButton(Icons.photo_library, _openGallery),
-            _buildIconButton(Icons.circle, _takePicture, size: 60),
+            _buildCaptureButton(),
             _buildIconButton(Icons.switch_camera, _switchCamera),
           ],
         ),
@@ -91,13 +90,37 @@ class _CameraPageState extends State<CameraPage> {
     );
   }
 
-  Widget _buildIconButton(IconData icon, Function() onPressed, {double size = 30}) {
-    return Expanded(
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white),
-        iconSize: size,
-        padding: EdgeInsets.zero,
-        onPressed: onPressed,
+  Widget _buildIconButton(IconData icon, Function() onPressed, {double size = 28}) {
+    return IconButton(
+      icon: Icon(icon, color: Colors.white.withOpacity(0.8)),
+      iconSize: size,
+      onPressed: onPressed,
+    );
+  }
+
+  Widget _buildCaptureButton() {
+    return GestureDetector(
+      onTap: _takePicture,
+      child: Container(
+        width: 65,
+        height: 65,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white,
+            width: 3,
+          ),
+        ),
+        child: Center(
+          child: Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
+        ),
       ),
     );
   }

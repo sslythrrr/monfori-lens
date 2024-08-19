@@ -51,6 +51,7 @@ class _ViewPhotoScreenState extends State<ViewPhotoScreen> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
+        
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
