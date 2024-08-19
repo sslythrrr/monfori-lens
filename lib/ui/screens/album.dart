@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:monforilens/models/media.dart';
 import 'package:monforilens/ui/screens/view_photo.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:intl/intl.dart';
@@ -91,22 +90,17 @@ class _AlbumPageState extends State<AlbumPage> {
     setState(() {});
   }
 
-  void _openPhotoDetail(AssetEntity photo) async {
-    final Uint8List? thumbnailData = await photo.thumbnailDataWithSize(const ThumbnailSize(500, 500));
-    if (thumbnailData != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ViewPhotoScreen(
-            media: Media(
-              assetEntity: photo,
-              widget: Image.memory(thumbnailData),
-            ),
-          ),
-        ),
-      );
-    }
-  }
+  void _openPhotoDetail(AssetEntity photo, int index, List<AssetEntity> photoList) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => ViewPhotoScreen(
+        photoList: photoList,
+        initialIndex: index,
+      ),
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +156,7 @@ class _AlbumPageState extends State<AlbumPage> {
                           builder: (context, snapshot) {
                             if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
                               return GestureDetector(
-                                onTap: () => _openPhotoDetail(photos[photoIndex]),
+                                onTap: () => _openPhotoDetail(photos[photoIndex], photoIndex, photos),
                                 child: Image.memory(snapshot.data!, fit: BoxFit.cover),
                               );
                             }

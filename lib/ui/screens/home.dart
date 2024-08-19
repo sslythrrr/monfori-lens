@@ -220,85 +220,80 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildRecentPhotos() {
-    return SizedBox(
-      height: 180,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              'Foto Terbaru',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _recentPhotos.length + 1,
-              itemBuilder: (context, index) {
-                if (index == _recentPhotos.length) {
-                  return Center(
-                    child: TextButton(
-                      onPressed: _openPhotosPage,
-                      child: const Text('Lihat Semua', style: TextStyle(color: Colors.blue)),
-                    ),
-                  );
-                }
-                return FutureBuilder<Uint8List?>(
-                  future: _recentPhotos[index].thumbnailDataWithSize(const ThumbnailSize(200, 200)),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
-                      return Padding(
-                        padding: const EdgeInsets.only(left: 16),
-                        child: GestureDetector(
-                          onTap: () => _openPhotoDetail(_recentPhotos[index]),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.memory(snapshot.data!, width: 100, height: 100, fit: BoxFit.cover),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                DateFormat('dd MMM').format(_recentPhotos[index].createDateTime),
-                                style: const TextStyle(color: Colors.white70, fontSize: 12),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-                    return Container(width: 100, height: 100, color: Colors.grey[800]);
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _openPhotoDetail(AssetEntity photo) async {
-    final Uint8List? thumbnailData = await photo.thumbnailDataWithSize(const ThumbnailSize(500, 500));
-    if (thumbnailData != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ViewPhotoScreen(
-            media: Media(
-              assetEntity: photo,
-              widget: Image.memory(thumbnailData),
-            ),
+  return SizedBox(
+    height: 180,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text(
+            'Foto Terbaru',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
           ),
         ),
-      );
-    }
-  }
+        Expanded(
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _recentPhotos.length + 1,
+            itemBuilder: (context, index) {
+              if (index == _recentPhotos.length) {
+                return Center(
+                  child: TextButton(
+                    onPressed: _openPhotosPage,
+                    child: const Text('Lihat Semua', style: TextStyle(color: Colors.blue)),
+                  ),
+                );
+              }
+              return FutureBuilder<Uint8List?>(
+                future: _recentPhotos[index].thumbnailDataWithSize(const ThumbnailSize(200, 200)),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 16),
+                      child: GestureDetector(
+                        onTap: () => _openPhotoDetail(_recentPhotos[index], index, _recentPhotos),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.memory(snapshot.data!, width: 100, height: 100, fit: BoxFit.cover),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              DateFormat('dd MMM').format(_recentPhotos[index].createDateTime),
+                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  return Container(width: 100, height: 100, color: Colors.grey[800]);
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+  void _openPhotoDetail(AssetEntity photo, int index, List<AssetEntity> photoList) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => ViewPhotoScreen(
+        photoList: photoList,
+        initialIndex: index,
+      ),
+    ),
+  );
+}
 
   Widget _buildAlbums() {
     return SliverGrid(
