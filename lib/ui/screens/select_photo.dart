@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:monforilens/ui/screens/preview.dart';
-import 'package:monforilens/ui/screens/process_photo.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:path/path.dart' as path;
 
@@ -14,6 +13,7 @@ class SelectPhoto extends StatefulWidget {
 
   @override
   State<SelectPhoto> createState() => _SelectPhotoState();
+  
 }
 
 class _SelectPhotoState extends State<SelectPhoto> {
@@ -135,6 +135,56 @@ class _SelectPhotoState extends State<SelectPhoto> {
     });
   }
 
+  Future<List<File>> _processPhotos() async {
+
+    // Urutkan foto berdasarkan timestamp
+    final sortedPhotos = _selectedPhotos.toList()
+      ..sort((a, b) => a.createDateTime.compareTo(b.createDateTime));
+
+/*
+    // Lakukan pengurutan nama file menggunakan regex
+    RegExp regExp = RegExp(r'\d+'); // Contoh regex sederhana
+    sortedPhotos.sort((a, b) {
+      final nameA = regExp.firstMatch(path.basenameWithoutExtension(a.title))?.group(0) ?? '';
+      final nameB = regExp.firstMatch(path.basenameWithoutExtension(b.title))?.group(0) ?? '';
+      return nameA.compareTo(nameB);
+    });
+    */
+
+    // Rename dengan penambahan suffix
+    List<File> renamedFiles = [];
+for (var photo in sortedPhotos) {
+  File? file = await photo.file;
+  if (file != null) {
+    // Suffix: namafile_mflenstanggal(bulanhari)huruf romawi
+    String formattedDate = DateFormat('MMdd').format(photo.createDateTime);
+    String suffix = '_mflens$formattedDate${_romanize(_photos.indexOf(photo) + 1)}';
+    String newName = '$suffix${path.basenameWithoutExtension(file.path)}${path.extension(file.path)}';
+
+    // Direktori tujuan
+    String targetDir = '/storage/emulated/0/Monforilens';
+
+    // Cek apakah direktori sudah ada, jika tidak, buat direktori baru
+    Directory directory = Directory(targetDir);
+    if (!directory.existsSync()) {
+      directory.createSync(recursive: true);  // Membuat direktori beserta sub-direktorinya jika perlu
+    }
+
+    // Fix untuk error "operation not permitted"
+    String newPath = path.join(targetDir, newName); // Pastikan kamu memiliki izin di path ini
+    File renamedFile = await file.copy(newPath); // Menyimpan file baru
+    renamedFiles.add(renamedFile);
+  }
+}
+return renamedFiles;
+  }
+  String _romanize(int num) {
+    const romanNumerals = {
+      1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI', 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X'
+    };
+    return romanNumerals[num] ?? '';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -152,46 +202,21 @@ class _SelectPhotoState extends State<SelectPhoto> {
             ),
           ),
           TextButton(
-  onPressed: _selectedPhotos.isEmpty ? null : () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ProcessScreen(), // Layar proses
-      ),
-    );
+            onPressed: _selectedPhotos.isEmpty ? null : () async {
+              List<File> processedPhotos = await _processPhotos();
 
-    Future.delayed(const Duration(seconds: 2), () async {
-      // Simulasi proses pengurutan
-      final sortedPhotos = _selectedPhotos.toList()..sort((a, b) => a.createDateTime.compareTo(b.createDateTime));
-
-      // Tambahkan suffix ke nama file
-      List<File> renamedFiles = [];
-      for (var photo in sortedPhotos) {
-        File? file = await photo.file;
-        if (file != null) {
-          String newName = '${path.basenameWithoutExtension(file.path)}_mflens${path.extension(file.path)}';
-          String newPath = path.join(path.dirname(file.path), newName);
-          File renamedFile = await file.rename(newPath);
-          renamedFiles.add(renamedFile);
-        }
-      }
-
-      // Gantikan layar proses dengan layar preview
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => Preview(sortedPhotos: renamedFiles), // Layar preview dengan foto yang diubah
-        ),
-      );
-    });
-  },
-  child: Text(
-    "Next (${_selectedPhotos.length})",
-    style: TextStyle(color: _selectedPhotos.isEmpty ? Colors.grey : Colors.white),
-  ),
-)
-,
-
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => Preview(sortedPhotos: processedPhotos),
+                ),
+              );
+            },
+            child: Text(
+              "Next (${_selectedPhotos.length})",
+              style: TextStyle(color: _selectedPhotos.isEmpty ? Colors.grey : Colors.white),
+            ),
+          ),
         ],
       ),
       body: _isLoading && _photos.isEmpty
@@ -245,7 +270,8 @@ class _SelectPhotoState extends State<SelectPhoto> {
                                 child: Stack(
                                   fit: StackFit.expand,
                                   children: [
-                                    Image.memory(snapshot.data!, fit: BoxFit.cover),
+                                    Image.memory
+(snapshot.data!, fit: BoxFit.cover),
                                     if (isSelected)
                                       Container(
                                         color: Colors.blue.withOpacity(0.5),
@@ -254,8 +280,9 @@ class _SelectPhotoState extends State<SelectPhoto> {
                                   ],
                                 ),
                               );
+                            } else {
+                              return const Center(child: CircularProgressIndicator());
                             }
-                            return Container(color: Colors.grey[800]);
                           },
                         );
                       },
@@ -267,3 +294,4 @@ class _SelectPhotoState extends State<SelectPhoto> {
     );
   }
 }
+

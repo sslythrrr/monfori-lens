@@ -1,13 +1,11 @@
 import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:monforilens/ui/screens/finalaction.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
+import 'package:path/path.dart' as path;
 
 class Preview extends StatefulWidget {
-  final List<File> sortedPhotos; // Ubah ini menjadi List<File>
+  final List<File> sortedPhotos;
 
   const Preview({super.key, required this.sortedPhotos});
 
@@ -16,12 +14,35 @@ class Preview extends StatefulWidget {
 }
 
 class _PreviewState extends State<Preview> {
-  List<File> _photos = []; // Sesuaikan ini juga
+  List<File> _photos = [];
 
   @override
   void initState() {
     super.initState();
     _photos = widget.sortedPhotos;
+  }
+
+  void _swapFiles(int oldIndex, int newIndex) {
+    setState(() {
+      // Tukar file
+      final temp = _photos[oldIndex];
+      _photos[oldIndex] = _photos[newIndex];
+      _photos[newIndex] = temp;
+
+      // Rename file sesuai dengan urutan baru
+      for (int i = 0; i < _photos.length; i++) {
+        String newName = '${path.basenameWithoutExtension(_photos[i].path)}_${_getRomanNumeral(i + 1)}${path.extension(_photos[i].path)}';
+        String newPath = path.join(path.dirname(_photos[i].path), newName);
+        _photos[i] = _photos[i].renameSync(newPath);
+      }
+    });
+  }
+
+  String _getRomanNumeral(int number) {
+    const romanNumerals = {
+      1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI', 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X'
+    };
+    return romanNumerals[number] ?? '';
   }
 
   @override
@@ -66,15 +87,9 @@ class _PreviewState extends State<Preview> {
           );
         },
         onReorder: (oldIndex, newIndex) {
-          setState(() {
-            if (newIndex > oldIndex) {
-              newIndex -= 1;
-            }
-            final item = _photos.removeAt(oldIndex);
-            _photos.insert(newIndex, item);
-          });
+          _swapFiles(oldIndex, newIndex);
         },
-     ),
-);
-}
+      ),
+    );
+  }
 }
