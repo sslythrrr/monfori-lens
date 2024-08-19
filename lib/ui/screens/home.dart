@@ -2,6 +2,7 @@
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:monforilens/ui/screens/select_photo.dart';
 import 'package:monforilens/ui/screens/view_photo.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:monforilens/ui/screens/camera.dart';
@@ -116,6 +117,15 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _openSelectPhoto() async {
+    Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (context) => const SelectPhoto(),
+  ),
+);
+  }
+
   void _openCamera() async {
     final result = await Navigator.push(
       context,
@@ -173,10 +183,56 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildEmptyPage() {
-    return const Center(
-      child: Text('Halaman Kosong', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-    );
-  }
+  return Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.photo_library_outlined,
+          color: Colors.white.withOpacity(0.6),
+          size: 80,
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'No Recent Photos',
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.85),
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'You can start by selecting photos.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.6),
+            fontSize: 16,
+          ),
+        ),
+        const SizedBox(height: 40),
+        ElevatedButton(
+          onPressed: _openSelectPhoto,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blueAccent,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(25),
+            ),
+          ),
+          child: const Text(
+            'Select Photos',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 
   Widget _buildContentPage() {
     return CustomScrollView(
