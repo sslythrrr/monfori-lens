@@ -1,10 +1,13 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:monforilens/ui/screens/preview.dart';
+import 'package:monforilens/ui/screens/process_photo.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:path/path.dart' as path;
 
@@ -13,7 +16,6 @@ class SelectPhoto extends StatefulWidget {
 
   @override
   State<SelectPhoto> createState() => _SelectPhotoState();
-  
 }
 
 class _SelectPhotoState extends State<SelectPhoto> {
@@ -135,50 +137,79 @@ class _SelectPhotoState extends State<SelectPhoto> {
     });
   }
 
-  Future<List<File>> _processPhotos() async {
+  Future<void> _processAndNavigate() async {
+  final progressController = StreamController<double>();
 
-    // Urutkan foto berdasarkan timestamp
-    final sortedPhotos = _selectedPhotos.toList()
-      ..sort((a, b) => a.createDateTime.compareTo(b.createDateTime));
+  // Tampilkan ProcessScreen dengan stream progres
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => ProcessScreen(progressStream: progressController.stream),
+    ),
+  );
 
-/*
-    // Lakukan pengurutan nama file menggunakan regex
-    RegExp regExp = RegExp(r'\d+'); // Contoh regex sederhana
-    sortedPhotos.sort((a, b) {
-      final nameA = regExp.firstMatch(path.basenameWithoutExtension(a.title))?.group(0) ?? '';
-      final nameB = regExp.firstMatch(path.basenameWithoutExtension(b.title))?.group(0) ?? '';
-      return nameA.compareTo(nameB);
-    });
-    */
+  try {
+    // Proses foto secara asynchronous dengan pelaporan progres
+    List<File> processedPhotos = await _processPhotos(_selectedPhotos.toList(), progressController);
 
-    // Rename dengan penambahan suffix
-    List<File> renamedFiles = [];
-for (var photo in sortedPhotos) {
-  File? file = await photo.file;
-  if (file != null) {
-    // Suffix: namafile_mflenstanggal(bulanhari)huruf romawi
-    String formattedDate = DateFormat('MMdd').format(photo.createDateTime);
-    String suffix = '_mflens$formattedDate${_romanize(_photos.indexOf(photo) + 1)}';
-    String newName = '$suffix${path.basenameWithoutExtension(file.path)}${path.extension(file.path)}';
+    // Tutup stream controller
+    await progressController.close();
 
-    // Direktori tujuan
-    String targetDir = '/storage/emulated/0/Monforilens';
-
-    // Cek apakah direktori sudah ada, jika tidak, buat direktori baru
-    Directory directory = Directory(targetDir);
-    if (!directory.existsSync()) {
-      directory.createSync(recursive: true);  // Membuat direktori beserta sub-direktorinya jika perlu
-    }
-
-    // Fix untuk error "operation not permitted"
-    String newPath = path.join(targetDir, newName); // Pastikan kamu memiliki izin di path ini
-    File renamedFile = await file.copy(newPath); // Menyimpan file baru
-    renamedFiles.add(renamedFile);
+    // Navigasi ke Preview setelah proses selesai
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => Preview(sortedPhotos: processedPhotos)),
+    );
+  } catch (e) {
+    // Handle error
+    await progressController.close();
+    Navigator.pop(context); // Tutup ProcessScreen
+    // Tampilkan pesan error
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error processing photos: $e')),
+    );
   }
 }
-return renamedFiles;
+
+Future<List<File>> _processPhotos(List<AssetEntity> selectedPhotos, StreamController<double> progressController) async {
+  // Urutkan foto berdasarkan timestamp
+  selectedPhotos.sort((a, b) => a.createDateTime.compareTo(b.createDateTime));
+
+  // Rename dengan penambahan suffix
+  List<File> renamedFiles = [];
+  int totalPhotos = selectedPhotos.length;
+
+  for (int i = 0; i < totalPhotos; i++) {
+    AssetEntity photo = selectedPhotos[i];
+    File? file = await photo.file;
+    if (file != null) {
+      // Proses file
+      String formattedDate = DateFormat('MMdd').format(photo.createDateTime);
+      String suffix = 'mflens$formattedDate${_romanize(i + 1)}_';
+      String newName = '$suffix${path.basenameWithoutExtension(file.path)}${path.extension(file.path)}';
+
+      String targetDir = '/storage/emulated/0/Monforilens';
+      Directory directory = Directory(targetDir);
+      if (!directory.existsSync()) {
+        directory.createSync(recursive: true);
+      }
+
+      String newPath = path.join(targetDir, newName);
+      File renamedFile = await file.copy(newPath);
+      renamedFiles.add(renamedFile);
+
+      // Update progress
+      progressController.add((i + 1) / totalPhotos);
+
+      // Beri waktu UI untuk merespons
+      await Future.delayed(const Duration(milliseconds: 1));
+    }
   }
-  String _romanize(int num) {
+
+  return renamedFiles;
+}
+
+  static String _romanize(int num) {
     const romanNumerals = {
       1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI', 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X'
     };
@@ -202,16 +233,7 @@ return renamedFiles;
             ),
           ),
           TextButton(
-            onPressed: _selectedPhotos.isEmpty ? null : () async {
-              List<File> processedPhotos = await _processPhotos();
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => Preview(sortedPhotos: processedPhotos),
-                ),
-              );
-            },
+            onPressed: _selectedPhotos.isEmpty ? null : _processAndNavigate,
             child: Text(
               "Next (${_selectedPhotos.length})",
               style: TextStyle(color: _selectedPhotos.isEmpty ? Colors.grey : Colors.white),
@@ -270,8 +292,7 @@ return renamedFiles;
                                 child: Stack(
                                   fit: StackFit.expand,
                                   children: [
-                                    Image.memory
-(snapshot.data!, fit: BoxFit.cover),
+                                    Image.memory(snapshot.data!, fit: BoxFit.cover),
                                     if (isSelected)
                                       Container(
                                         color: Colors.blue.withOpacity(0.5),
@@ -294,4 +315,3 @@ return renamedFiles;
     );
   }
 }
-
