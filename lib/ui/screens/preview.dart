@@ -1,11 +1,16 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:monforilens/ui/screens/finalaction.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:path/path.dart' as path;
+import 'package:intl/intl.dart';
 
 class Preview extends StatefulWidget {
-  final List<File> sortedPhotos;
+  final List<AssetEntity> sortedPhotos;
 
   const Preview({super.key, required this.sortedPhotos});
 
@@ -14,7 +19,7 @@ class Preview extends StatefulWidget {
 }
 
 class _PreviewState extends State<Preview> {
-  late List<File> _photos;
+  late List<AssetEntity> _photos;
 
   @override
   void initState() {
@@ -22,45 +27,46 @@ class _PreviewState extends State<Preview> {
     _photos = List.from(widget.sortedPhotos);
   }
 
-  void _swapFiles(int oldIndex, int newIndex) {
+  void _swapPhotos(int oldIndex, int newIndex) {
     setState(() {
       if (oldIndex < newIndex) {
         newIndex -= 1;
       }
-      final File item = _photos.removeAt(oldIndex);
+      final AssetEntity item = _photos.removeAt(oldIndex);
       _photos.insert(newIndex, item);
-
-      // Rename files based on new order
-      _renameFiles();
     });
   }
 
-  void _renameFiles() {
+  Future<List<File>> _processAndRenamePhotos() async {
+    List<File> renamedFiles = [];
     for (int i = 0; i < _photos.length; i++) {
-      File photo = _photos[i];
-      String oldPath = photo.path;
-      String fileName = path.basenameWithoutExtension(oldPath);
-      String extension = path.extension(oldPath);
-      
-      // Extract the prefix (everything before the last underscore)
-      List<String> parts = fileName.split('_');
-      String prefix = parts.sublist(0, parts.length - 1).join('_');
-      
-      // Create new name with updated Roman numeral
-      String newName = '${prefix}_${_getRomanNumeral(i + 1)}$extension';
-      String newPath = path.join(path.dirname(oldPath), newName);
-      
-      // Rename the file
-      File renamedFile = photo.renameSync(newPath);
-      _photos[i] = renamedFile;
+      AssetEntity photo = _photos[i];
+      File? file = await photo.file;
+      if (file != null) {
+        String formattedDate = DateFormat('MMdd').format(photo.createDateTime);
+        String suffix = 'mf$formattedDate${_getRomanNumeral(i + 1)}_';
+        String newName = '$suffix${path.basenameWithoutExtension(file.path)}${path.extension(file.path)}';
+
+        String targetDir = '/storage/emulated/0/Monforilens/.temp';
+        Directory directory = Directory(targetDir);
+        if (!directory.existsSync()) {
+          directory.createSync(recursive: true);
+        }
+
+        String newPath = path.join(targetDir, newName);
+        File renamedFile = await file.copy(newPath);
+        renamedFiles.add(renamedFile);
+      }
     }
+    return renamedFiles;
   }
 
   String _getRomanNumeral(int number) {
     const romanNumerals = {
-      1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI', 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X'
+      1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V',
+      6: 'VI', 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X'
     };
-    return romanNumerals[number] ?? number.toString();
+    return romanNumerals[number] ?? '';
   }
 
   @override
@@ -76,11 +82,12 @@ class _PreviewState extends State<Preview> {
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           TextButton(
-            onPressed: () {
+            onPressed: () async {
+              List<File> processedFiles = await _processAndRenamePhotos();
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const FinalActionScreen(),
+                  builder: (context) => FinalActionScreen(processedFiles: processedFiles),
                 ),
               );
             },
@@ -99,15 +106,22 @@ class _PreviewState extends State<Preview> {
         ),
         itemCount: _photos.length,
         itemBuilder: (context, index) {
-          return Container(
-            key: ValueKey(_photos[index].path),
-            child: Image.file(
-              _photos[index],
-              fit: BoxFit.cover,
-            ),
+          return FutureBuilder<Uint8List?>(
+            key: ValueKey(_photos[index].id),
+            future: _photos[index].thumbnailDataWithSize(const ThumbnailSize(300, 300)),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
+                return Image.memory(
+                  snapshot.data!,
+                  fit: BoxFit.cover,
+                );
+              } else {
+                return const Center(child: CircularProgressIndicator());
+              }
+            },
           );
         },
-        onReorder: _swapFiles,
+        onReorder: _swapPhotos,
       ),
     );
   }

@@ -1,7 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -9,7 +8,6 @@ import 'package:intl/intl.dart';
 import 'package:monforilens/ui/screens/preview.dart';
 import 'package:monforilens/ui/screens/process_photo.dart';
 import 'package:photo_manager/photo_manager.dart';
-import 'package:path/path.dart' as path;
 
 class SelectPhoto extends StatefulWidget {
   const SelectPhoto({super.key});
@@ -138,82 +136,43 @@ class _SelectPhotoState extends State<SelectPhoto> {
   }
 
   Future<void> _processAndNavigate() async {
-  final progressController = StreamController<double>();
+    final progressController = StreamController<double>();
 
-  // Tampilkan ProcessScreen dengan stream progres
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => ProcessScreen(progressStream: progressController.stream),
-    ),
-  );
-
-  try {
-    // Proses foto secara asynchronous dengan pelaporan progres
-    List<File> processedPhotos = await _processPhotos(_selectedPhotos.toList(), progressController);
-
-    // Tutup stream controller
-    await progressController.close();
-
-    // Navigasi ke Preview setelah proses selesai
-    Navigator.pushReplacement(
+    Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => Preview(sortedPhotos: processedPhotos)),
+      MaterialPageRoute(
+        builder: (context) => ProcessScreen(progressStream: progressController.stream),
+      ),
     );
-  } catch (e) {
-    // Handle error
-    await progressController.close();
-    Navigator.pop(context); // Tutup ProcessScreen
-    // Tampilkan pesan error
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error processing photos: $e')),
-    );
-  }
-}
 
-Future<List<File>> _processPhotos(List<AssetEntity> selectedPhotos, StreamController<double> progressController) async {
-  // Urutkan foto berdasarkan timestamp
-  selectedPhotos.sort((a, b) => a.createDateTime.compareTo(b.createDateTime));
+    try {
+      List<AssetEntity> sortedPhotos = await _sortPhotos(_selectedPhotos.toList(), progressController);
 
-  // Rename dengan penambahan suffix
-  List<File> renamedFiles = [];
-  int totalPhotos = selectedPhotos.length;
+      await progressController.close();
 
-  for (int i = 0; i < totalPhotos; i++) {
-    AssetEntity photo = selectedPhotos[i];
-    File? file = await photo.file;
-    if (file != null) {
-      // Proses file
-      String formattedDate = DateFormat('MMdd').format(photo.createDateTime);
-      String suffix = 'mflens$formattedDate${_romanize(i + 1)}_';
-      String newName = '$suffix${path.basenameWithoutExtension(file.path)}${path.extension(file.path)}';
-
-      String targetDir = '/storage/emulated/0/Monforilens';
-      Directory directory = Directory(targetDir);
-      if (!directory.existsSync()) {
-        directory.createSync(recursive: true);
-      }
-
-      String newPath = path.join(targetDir, newName);
-      File renamedFile = await file.copy(newPath);
-      renamedFiles.add(renamedFile);
-
-      // Update progress
-      progressController.add((i + 1) / totalPhotos);
-
-      // Beri waktu UI untuk merespons
-      await Future.delayed(const Duration(milliseconds: 1));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => Preview(sortedPhotos: sortedPhotos)),
+      );
+    } catch (e) {
+      await progressController.close();
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error processing photos: $e')),
+      );
     }
   }
 
-  return renamedFiles;
-}
+  Future<List<AssetEntity>> _sortPhotos(List<AssetEntity> selectedPhotos, StreamController<double> progressController) async {
+    selectedPhotos.sort((a, b) => a.createDateTime.compareTo(b.createDateTime));
 
-  static String _romanize(int num) {
-    const romanNumerals = {
-      1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI', 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X'
-    };
-    return romanNumerals[num] ?? '';
+    int totalPhotos = selectedPhotos.length;
+    for (int i = 0; i < totalPhotos; i++) {
+      progressController.add((i + 1) / totalPhotos);
+      await Future.delayed(const Duration(milliseconds: 1));
+    }
+
+    return selectedPhotos;
   }
 
   @override
