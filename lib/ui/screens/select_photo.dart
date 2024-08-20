@@ -1,7 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
@@ -23,7 +22,8 @@ class _SelectPhotoState extends State<SelectPhoto> {
   bool _isLoading = false;
   int _currentPage = 0;
   final int _pageSize = 100;
-  Set<AssetEntity> _selectedPhotos = {};
+  final ValueNotifier<Set<AssetEntity>> _selectedPhotos = ValueNotifier<Set<AssetEntity>>({});
+  final Map<String, Uint8List?> _thumbnailCache = {};
 
   @override
   void initState() {
@@ -36,6 +36,7 @@ class _SelectPhotoState extends State<SelectPhoto> {
   void dispose() {
     _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
+    _selectedPhotos.dispose();
     super.dispose();
   }
 
@@ -116,23 +117,22 @@ class _SelectPhotoState extends State<SelectPhoto> {
   }
 
   void _selectPhoto(AssetEntity photo) {
-    setState(() {
-      if (_selectedPhotos.contains(photo)) {
-        _selectedPhotos.remove(photo);
-      } else {
-        _selectedPhotos.add(photo);
-      }
-    });
+  final selectedPhotos = _selectedPhotos.value;
+  if (selectedPhotos.contains(photo)) {
+    selectedPhotos.remove(photo);
+  } else {
+    selectedPhotos.add(photo);
   }
+  _selectedPhotos.value = Set.from(selectedPhotos); // Notify listeners
+}
+
 
   void _selectAll() {
-    setState(() {
-      if (_selectedPhotos.length == _photos.length) {
-        _selectedPhotos.clear();
-      } else {
-        _selectedPhotos = Set.from(_photos);
-      }
-    });
+    if (_selectedPhotos.value.length == _photos.length) {
+      _selectedPhotos.value = {};
+    } else {
+      _selectedPhotos.value = Set.from(_photos);
+    }
   }
 
   Future<void> _processAndNavigate() async {
@@ -146,7 +146,12 @@ class _SelectPhotoState extends State<SelectPhoto> {
     );
 
     try {
-      List<AssetEntity> sortedPhotos = await _sortPhotos(_selectedPhotos.toList(), progressController);
+      List<AssetEntity> sortedPhotos = await compute(_sortPhotos, _selectedPhotos.value.toList());
+
+      for (int i = 0; i < sortedPhotos.length; i++) {
+        progressController.add((i + 1) / sortedPhotos.length);
+        await Future.delayed(const Duration(milliseconds: 1));
+      }
 
       await progressController.close();
 
@@ -163,16 +168,19 @@ class _SelectPhotoState extends State<SelectPhoto> {
     }
   }
 
-  Future<List<AssetEntity>> _sortPhotos(List<AssetEntity> selectedPhotos, StreamController<double> progressController) async {
+  static List<AssetEntity> _sortPhotos(List<AssetEntity> selectedPhotos) {
     selectedPhotos.sort((a, b) => a.createDateTime.compareTo(b.createDateTime));
-
-    int totalPhotos = selectedPhotos.length;
-    for (int i = 0; i < totalPhotos; i++) {
-      progressController.add((i + 1) / totalPhotos);
-      await Future.delayed(const Duration(milliseconds: 1));
-    }
-
     return selectedPhotos;
+  }
+
+  Future<Uint8List?> _getThumbnail(AssetEntity photo) async {
+    final String cacheKey = photo.id;
+    if (_thumbnailCache.containsKey(cacheKey)) {
+      return _thumbnailCache[cacheKey];
+    }
+    final Uint8List? thumbnail = await photo.thumbnailDataWithSize(const ThumbnailSize(200, 200));
+    _thumbnailCache[cacheKey] = thumbnail;
+    return thumbnail;
   }
 
   @override
@@ -184,19 +192,29 @@ class _SelectPhotoState extends State<SelectPhoto> {
         title: const Text('Select Photos', style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          TextButton(
-            onPressed: _selectAll,
-            child: Text(
-              _selectedPhotos.length == _photos.length ? "Deselect All" : "Select All",
-              style: const TextStyle(color: Colors.white),
-            ),
+          ValueListenableBuilder<Set<AssetEntity>>(
+            valueListenable: _selectedPhotos,
+            builder: (context, selectedPhotos, child) {
+              return TextButton(
+                onPressed: _selectAll,
+                child: Text(
+                  selectedPhotos.length == _photos.length ? "Deselect All" : "Select All",
+                  style: const TextStyle(color: Colors.white),
+                ),
+              );
+            },
           ),
-          TextButton(
-            onPressed: _selectedPhotos.isEmpty ? null : _processAndNavigate,
-            child: Text(
-              "Next (${_selectedPhotos.length})",
-              style: TextStyle(color: _selectedPhotos.isEmpty ? Colors.grey : Colors.white),
-            ),
+          ValueListenableBuilder<Set<AssetEntity>>(
+            valueListenable: _selectedPhotos,
+            builder: (context, selectedPhotos, child) {
+              return TextButton(
+                onPressed: selectedPhotos.isEmpty ? null : _processAndNavigate,
+                child: Text(
+                  "Next (${selectedPhotos.length})",
+                  style: TextStyle(color: selectedPhotos.isEmpty ? Colors.grey : Colors.white),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -242,23 +260,33 @@ class _SelectPhotoState extends State<SelectPhoto> {
                       itemBuilder: (context, photoIndex) {
                         final photo = photos[photoIndex];
                         return FutureBuilder<Uint8List?>(
-                          future: photo.thumbnailDataWithSize(const ThumbnailSize(200, 200)),
+                          future: _getThumbnail(photo),
                           builder: (context, snapshot) {
                             if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
-                              final isSelected = _selectedPhotos.contains(photo);
-                              return GestureDetector(
-                                onTap: () => _selectPhoto(photo),
-                                child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    Image.memory(snapshot.data!, fit: BoxFit.cover),
-                                    if (isSelected)
-                                      Container(
-                                        color: Colors.blue.withOpacity(0.5),
-                                        child: const Icon(Icons.check, color: Colors.white),
-                                      ),
-                                  ],
-                                ),
+                              return ValueListenableBuilder<Set<AssetEntity>>(
+                                valueListenable: _selectedPhotos,
+                                builder: (context, selectedPhotos, child) {
+                                  final isSelected = selectedPhotos.contains(photo);
+                                  return GestureDetector(
+                                    onTap: () => _selectPhoto(photo),
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        Image.memory(snapshot.data!, fit: BoxFit.cover),
+                                        AnimatedSwitcher(
+                                          duration: const Duration(milliseconds: 200),
+                                          child: isSelected
+                                              ? Container(
+                                                  key: ValueKey(photo),
+                                                  color: Colors.blue.withOpacity(0.5),
+                                                  child: const Icon(Icons.check, color: Colors.white),
+                                                )
+                                              : const SizedBox.shrink(),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
                               );
                             } else {
                               return const Center(child: CircularProgressIndicator());
