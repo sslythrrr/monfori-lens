@@ -55,6 +55,7 @@ dependencies:
   flutter_spinkit: ^5.0.0
   flutter_launcher_icons: ^0.10.0
   dart_levenshtein: ^1.0.1
+  carousel_slider: ^5.0.0
 
 dev_dependencies:
   flutter_test:

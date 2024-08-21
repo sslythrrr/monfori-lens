@@ -43,8 +43,8 @@ class _PreviewState extends State<Preview> {
       AssetEntity photo = _photos[i];
       File? file = await photo.file;
       if (file != null) {
-        String formattedDate = DateFormat('MMdd').format(photo.createDateTime);
-        String suffix = 'mf$formattedDate${_getRomanNumeral(i + 1)}_';
+        //String formattedDate = DateFormat('MMdd').format(photo.createDateTime);
+        String suffix = 'mf${_getRomanNumeral(i + 1)}_';
         String newName = '$suffix${path.basenameWithoutExtension(file.path)}${path.extension(file.path)}';
 
         String targetDir = '/storage/emulated/0/Monforilens/.temp';

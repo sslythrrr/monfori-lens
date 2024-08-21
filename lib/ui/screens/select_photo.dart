@@ -1,11 +1,8 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:monforilens/ui/screens/preview.dart';
-import 'package:monforilens/ui/screens/process_photo.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 class SelectPhoto extends StatefulWidget {
@@ -17,6 +14,7 @@ class SelectPhoto extends StatefulWidget {
 
 class _SelectPhotoState extends State<SelectPhoto> {
   List<AssetEntity> _photos = [];
+  List<AssetPathEntity> _albums = [];
   final Map<String, List<AssetEntity>> _groupedPhotos = {};
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
@@ -25,10 +23,22 @@ class _SelectPhotoState extends State<SelectPhoto> {
   final ValueNotifier<Set<AssetEntity>> _selectedPhotos = ValueNotifier<Set<AssetEntity>>({});
   final Map<String, Uint8List?> _thumbnailCache = {};
 
+  final PageController _pageController = PageController();
+  int _currentTabIndex = 0;
+
+  Future<void> _navigateToPreview(List<AssetEntity> selectedPhotos) async {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Preview(sortedPhotos: selectedPhotos),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-    _loadPhotos();
+    _loadAlbums();
     _scrollController.addListener(_scrollListener);
   }
 
@@ -47,7 +57,7 @@ class _SelectPhotoState extends State<SelectPhoto> {
     }
   }
 
-  Future<void> _loadPhotos() async {
+  Future<void> _loadAlbums() async {
     setState(() {
       _isLoading = true;
     });
@@ -63,20 +73,29 @@ class _SelectPhotoState extends State<SelectPhoto> {
 
     final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(type: RequestType.image);
     if (albums.isNotEmpty) {
-      final List<AssetEntity> allPhotos = await albums[0].getAssetListPaged(page: 0, size: _pageSize);
-      if (!mounted) return;
-      setState(() {
-        _photos = allPhotos;
-        _groupPhotos(allPhotos);
-        _isLoading = false;
-        _currentPage = 1;
-      });
+      _albums = albums;
+      _loadPhotosFromAlbum(albums.first);
     } else {
-      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _loadPhotosFromAlbum(AssetPathEntity album) async {
+    setState(() {
+      _isLoading = true;
+      _photos.clear();
+      _groupedPhotos.clear();
+    });
+
+    final List<AssetEntity> photos = await album.getAssetListPaged(page: 0, size: _pageSize);
+    setState(() {
+      _photos = photos;
+      _groupPhotos(photos);
+      _isLoading = false;
+      _currentPage = 1;
+    });
   }
 
   Future<void> _loadMorePhotos() async {
@@ -86,22 +105,14 @@ class _SelectPhotoState extends State<SelectPhoto> {
       _isLoading = true;
     });
 
-    final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(type: RequestType.image);
-    if (albums.isNotEmpty) {
-      final List<AssetEntity> morePhotos = await albums[0].getAssetListPaged(page: _currentPage, size: _pageSize);
-      if (!mounted) return;
-      setState(() {
-        _photos.addAll(morePhotos);
-        _groupPhotos(morePhotos);
-        _isLoading = false;
-        _currentPage++;
-      });
-    } else {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    final AssetPathEntity album = _albums[_currentTabIndex];
+    final List<AssetEntity> morePhotos = await album.getAssetListPaged(page: _currentPage, size: _pageSize);
+    setState(() {
+      _photos.addAll(morePhotos);
+      _groupPhotos(morePhotos);
+      _isLoading = false;
+      _currentPage++;
+    });
   }
 
   void _groupPhotos(List<AssetEntity> photos) {
@@ -117,15 +128,14 @@ class _SelectPhotoState extends State<SelectPhoto> {
   }
 
   void _selectPhoto(AssetEntity photo) {
-  final selectedPhotos = _selectedPhotos.value;
-  if (selectedPhotos.contains(photo)) {
-    selectedPhotos.remove(photo);
-  } else {
-    selectedPhotos.add(photo);
+    final selectedPhotos = _selectedPhotos.value;
+    if (selectedPhotos.contains(photo)) {
+      selectedPhotos.remove(photo);
+    } else {
+      selectedPhotos.add(photo);
+    }
+    _selectedPhotos.value = Set.from(selectedPhotos); // Notify listeners
   }
-  _selectedPhotos.value = Set.from(selectedPhotos); // Notify listeners
-}
-
 
   void _selectAll() {
     if (_selectedPhotos.value.length == _photos.length) {
@@ -135,42 +145,13 @@ class _SelectPhotoState extends State<SelectPhoto> {
     }
   }
 
-  Future<void> _processAndNavigate() async {
-    final progressController = StreamController<double>();
-
+  Future<void> _navigateToAlbumView(AssetPathEntity album) async {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ProcessScreen(progressStream: progressController.stream),
+        builder: (context) => AlbumPhotoGridView(album: album),
       ),
     );
-
-    try {
-      List<AssetEntity> sortedPhotos = await compute(_sortPhotos, _selectedPhotos.value.toList());
-
-      for (int i = 0; i < sortedPhotos.length; i++) {
-        progressController.add((i + 1) / sortedPhotos.length);
-        await Future.delayed(const Duration(milliseconds: 1));
-      }
-
-      await progressController.close();
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => Preview(sortedPhotos: sortedPhotos)),
-      );
-    } catch (e) {
-      await progressController.close();
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error processing photos: $e')),
-      );
-    }
-  }
-
-  static List<AssetEntity> _sortPhotos(List<AssetEntity> selectedPhotos) {
-    selectedPhotos.sort((a, b) => a.createDateTime.compareTo(b.createDateTime));
-    return selectedPhotos;
   }
 
   Future<Uint8List?> _getThumbnail(AssetEntity photo) async {
@@ -208,7 +189,7 @@ class _SelectPhotoState extends State<SelectPhoto> {
             valueListenable: _selectedPhotos,
             builder: (context, selectedPhotos, child) {
               return TextButton(
-                onPressed: selectedPhotos.isEmpty ? null : _processAndNavigate,
+                onPressed: selectedPhotos.isEmpty ? null : () => _navigateToPreview(selectedPhotos.toList()),
                 child: Text(
                   "Next (${selectedPhotos.length})",
                   style: TextStyle(color: selectedPhotos.isEmpty ? Colors.grey : Colors.white),
@@ -218,87 +199,328 @@ class _SelectPhotoState extends State<SelectPhoto> {
           ),
         ],
       ),
-      body: _isLoading && _photos.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              controller: _scrollController,
-              itemCount: _groupedPhotos.length + (_isLoading ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _groupedPhotos.length) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
-                final date = _groupedPhotos.keys.elementAt(index);
-                final photos = _groupedPhotos[date]!;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          setState(() {
+            _currentTabIndex = index;
+          });
+        },
+        children: [
+          _buildPhotoGrid(),
+          AlbumGridView(
+            albums: _albums,
+            onAlbumTapped: _navigateToAlbumView,
+          ),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: const Color(0x000000ff),
+        currentIndex: _currentTabIndex,
+        onTap: (index) {
+          _pageController.animateToPage(index, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.photo_library),
+            label: 'Photos',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.photo_album),
+            label: 'Albums',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhotoGrid() {
+    return GridView.builder(
+      controller: _scrollController,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        crossAxisSpacing: 2,
+        mainAxisSpacing: 2,
+      ),
+      itemCount: _photos.length,
+      itemBuilder: (context, index) {
+        final photo = _photos[index];
+        return FutureBuilder<Uint8List?>(
+          future: _getThumbnail(photo),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
+              final isSelected = _selectedPhotos.value.contains(photo);
+              return GestureDetector(
+                onTap: () => _selectPhoto(photo),
+                child: Stack(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        date,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
+                    Positioned.fill(
+                      child: Image.memory(snapshot.data!, fit: BoxFit.cover),
+                    ),
+                    if (isSelected)
+                      const Positioned(
+                        right: 4,
+                        top: 4,
+                        child: Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            } else {
+              return const Center(child: CircularProgressIndicator());
+            }
+          },
+        );
+      },
+    );
+  }
+}
+
+class AlbumGridView extends StatelessWidget {
+  final List<AssetPathEntity> albums;
+  final Function(AssetPathEntity) onAlbumTapped;
+
+  const AlbumGridView({
+    super.key,
+    required this.albums,
+    required this.onAlbumTapped,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 2,
+        mainAxisSpacing: 2,
+      ),
+      itemCount: albums.length,
+      itemBuilder: (context, index) {
+        final album = albums[index];
+        return FutureBuilder<Uint8List?>(
+          future: album.getAssetListRange(start: 0, end: 1).then((value) => value.first.thumbnailData),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
+              return GestureDetector(
+                onTap: () => onAlbumTapped(album),
+                child: Stack(
+                  children: [
+                    Image.memory(snapshot.data!, fit: BoxFit.cover),
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        color: Colors.black54,
+                        padding: const EdgeInsets.all(4.0),
+                        child: Text(
+                          album.name,
+                          style: const TextStyle(color: Colors.white),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
-                        crossAxisSpacing: 2,
-                        mainAxisSpacing: 2,
-                      ),
-                      itemCount: photos.length,
-                      itemBuilder: (context, photoIndex) {
-                        final photo = photos[photoIndex];
-                        return FutureBuilder<Uint8List?>(
-                          future: _getThumbnail(photo),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
-                              return ValueListenableBuilder<Set<AssetEntity>>(
-                                valueListenable: _selectedPhotos,
-                                builder: (context, selectedPhotos, child) {
-                                  final isSelected = selectedPhotos.contains(photo);
-                                  return GestureDetector(
-                                    onTap: () => _selectPhoto(photo),
-                                    child: Stack(
-                                      fit: StackFit.expand,
-                                      children: [
-                                        Image.memory(snapshot.data!, fit: BoxFit.cover),
-                                        AnimatedSwitcher(
-                                          duration: const Duration(milliseconds: 200),
-                                          child: isSelected
-                                              ? Container(
-                                                  key: ValueKey(photo),
-                                                  color: Colors.blue.withOpacity(0.5),
-                                                  child: const Icon(Icons.check, color: Colors.white),
-                                                )
-                                              : const SizedBox.shrink(),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              );
-                            } else {
-                              return const Center(child: CircularProgressIndicator());
-                            }
-                          },
-                        );
-                      },
-                    ),
                   ],
+                ),
+              );
+            } else {
+              return const Center(child: CircularProgressIndicator());
+            }
+          },
+        );
+      },
+    );
+  }
+}
+
+class AlbumPhotoGridView extends StatefulWidget {
+  final AssetPathEntity album;
+
+  const AlbumPhotoGridView({
+    super.key,
+    required this.album,
+  });
+
+  @override
+  State<AlbumPhotoGridView> createState() => _AlbumPhotoGridViewState();
+}
+
+class _AlbumPhotoGridViewState extends State<AlbumPhotoGridView> {
+  List<AssetEntity> _photos = [];
+  final ScrollController _scrollController = ScrollController();
+  bool _isLoading = false;
+  int _currentPage = 0;
+  final int _pageSize = 100;
+  final ValueNotifier<Set<AssetEntity>> _selectedPhotos = ValueNotifier<Set<AssetEntity>>({});
+  final Map<String, Uint8List?> _thumbnailCache = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhotosFromAlbum();
+    _scrollController.addListener(_scrollListener);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
+    _selectedPhotos.dispose();
+    super.dispose();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.offset >= _scrollController.position.maxScrollExtent &&
+        !_scrollController.position.outOfRange) {
+      _loadMorePhotos();
+    }
+  }
+
+  Future<void> _loadPhotosFromAlbum() async {
+    setState(() {
+      _isLoading = true;
+      _photos.clear();
+    });
+
+    final List<AssetEntity> photos = await widget.album.getAssetListPaged(page: 0, size: _pageSize);
+    setState(() {
+      _photos = photos;
+      _isLoading = false;
+      _currentPage = 1;
+    });
+  }
+
+  Future<void> _loadMorePhotos() async {
+    if (_isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final List<AssetEntity> morePhotos = await widget.album.getAssetListPaged(page: _currentPage, size: _pageSize);
+    setState(() {
+      _photos.addAll(morePhotos);
+      _isLoading = false;
+      _currentPage++;
+    });
+  }
+
+  void _selectPhoto(AssetEntity photo) {
+    final selectedPhotos = _selectedPhotos.value;
+    if (selectedPhotos.contains(photo)) {
+      selectedPhotos.remove(photo);
+    } else {
+      selectedPhotos.add(photo);
+    }
+    _selectedPhotos.value = Set.from(selectedPhotos); // Notify listeners
+  }
+
+  void _selectAll() {
+    if (_selectedPhotos.value.length == _photos.length) {
+      _selectedPhotos.value = {};
+    } else {
+      _selectedPhotos.value = Set.from(_photos);
+    }
+  }
+
+  Future<void> _navigateToPreview(List<AssetEntity> selectedPhotos) async {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Preview(sortedPhotos: selectedPhotos),
+      ),
+    );
+  }
+
+  Future<Uint8List?> _getThumbnail(AssetEntity photo) async {
+    final String cacheKey = photo.id;
+    if (_thumbnailCache.containsKey(cacheKey)) {
+      return _thumbnailCache[cacheKey];
+    }
+    final Uint8List? thumbnail = await photo.thumbnailDataWithSize(const ThumbnailSize(200, 200));
+    _thumbnailCache[cacheKey] = thumbnail;
+    return thumbnail;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: Text(widget.album.name, style: const TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          ValueListenableBuilder<Set<AssetEntity>>(
+            valueListenable: _selectedPhotos,
+            builder: (context, selectedPhotos, child) {
+              return TextButton(
+                onPressed: _selectAll,
+                child: Text(
+                  selectedPhotos.length == _photos.length ? "Deselect All" : "Select All",
+                  style: const TextStyle(color: Colors.white),
+                ),
+              );
+            },
+          ),
+          ValueListenableBuilder<Set<AssetEntity>>(
+            valueListenable: _selectedPhotos,
+            builder: (context, selectedPhotos, child) {
+              return TextButton(
+                onPressed: selectedPhotos.isEmpty ? null : () => _navigateToPreview(selectedPhotos.toList()),
+                child: Text(
+                  "Next (${selectedPhotos.length})",
+                  style: TextStyle(color: selectedPhotos.isEmpty ? Colors.grey : Colors.white),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      body: GridView.builder(
+        controller: _scrollController,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
+        ),
+        itemCount: _photos.length,
+        itemBuilder: (context, index) {
+          final photo = _photos[index];
+          return FutureBuilder<Uint8List?>(
+            future: _getThumbnail(photo),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
+                final isSelected = _selectedPhotos.value.contains(photo);
+                return GestureDetector(
+                  onTap: () => _selectPhoto(photo),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: Image.memory(snapshot.data!, fit: BoxFit.cover),
+                      ),
+                      if (isSelected)
+                        const Positioned(
+                          right: 4,
+                          top: 4,
+                          child: Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                          ),
+                        ),
+                    ],
+                  ),
                 );
-              },
-            ),
+              } else {
+                return const Center(child: CircularProgressIndicator());
+              }
+            },
+          );
+        },
+      ),
     );
   }
 }
