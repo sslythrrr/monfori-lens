@@ -27,7 +27,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Warna background splash screen
+      backgroundColor: Colors.black, // Warna background splash screen
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -35,14 +35,14 @@ class _SplashScreenState extends State<SplashScreen> {
             // Logo gambar
             Image.asset(
               'assets/images/splash.png',
-              width: 150, // Lebar logo
-              height: 150, // Tinggi logo
+              width: 200, // Lebar logo
+              height: 200, // Tinggi logo
             ),
             const SizedBox(height: 20), // Jarak antara logo dan spinner
             // Spinner
             const SpinKitCircle(
               color: Colors.blue, // Warna spinner
-              size: 50.0, // Ukuran spinner
+              size: 70.0, // Ukuran spinner
             ),
           ],
         ),
