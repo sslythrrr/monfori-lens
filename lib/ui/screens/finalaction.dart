@@ -1,22 +1,22 @@
-// ignore_for_file: library_private_types_in_public_api, deprecated_member_use
+// ignore_for_file: deprecated_member_use, library_private_types_in_public_api
 
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:monforilens/ui/screens/select_photo.dart';
 import 'package:path/path.dart' as path;
 import 'package:share_plus/share_plus.dart';
-import 'home.dart'; // Pastikan Anda mengimpor HomePage
 
-class ResultsScreen extends StatefulWidget {
+class FinalActionScreen extends StatefulWidget {
   final List<File> processedFiles;
 
-  const ResultsScreen({super.key, required this.processedFiles});
+  const FinalActionScreen({super.key, required this.processedFiles});
 
   @override
-  _ResultsScreenState createState() => _ResultsScreenState();
+  _FinalActionScreenState createState() => _FinalActionScreenState();
 }
 
-class _ResultsScreenState extends State<ResultsScreen> {
+class _FinalActionScreenState extends State<FinalActionScreen> {
   late TextEditingController _folderNameController;
 
   @override
@@ -36,7 +36,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   }
 
   Future<bool> _onWillPop() async {
-    Navigator.of(context).pop(); // Kembali ke screen sebelumnya tanpa menghapus file temp
+    _handleCancel();
     return false;
   }
 
@@ -48,20 +48,20 @@ class _ResultsScreenState extends State<ResultsScreen> {
         backgroundColor: Colors.black,
         appBar: AppBar(
           backgroundColor: Colors.black,
-          title: const Text('Hasil Akhir', style: TextStyle(color: Colors.white)),
+          title: const Text('Final Actions', style: TextStyle(color: Colors.white)),
           iconTheme: const IconThemeData(color: Colors.white),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              Navigator.of(context).pop(); // Kembali ke screen sebelumnya tanpa menghapus file temp
+              _handleCancel();
             },
           ),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.home),
+            TextButton(
               onPressed: () {
-                _handleCancel(); // Balik ke HomePage dan hapus file temp
+                _handleCancel();
               },
+              child: const Text('Cancel', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -85,11 +85,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 ),
               ),
               const SizedBox(height: 30),
-              _buildActionButton(Icons.save, 'Simpan ke Penyimpanan', _handleSave),
+              _buildActionButton(Icons.save, 'Save to Local', _handleSave),
               const SizedBox(height: 15),
-              _buildActionButton(Icons.cloud_upload, 'Upload ke Cloud', _handleUpload),
+              _buildActionButton(Icons.cloud_upload, 'Upload to Cloud', _handleUpload),
               const SizedBox(height: 15),
-              _buildActionButton(Icons.share, 'Bagikan', _handleShare),
+              _buildActionButton(Icons.share, 'Share', _handleShare),
             ],
           ),
         ),
@@ -121,9 +121,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
     }
 
     _showSnackBar('Files saved to ${directory.path}');
+    _deleteTempFiles();
   }
 
   Future<void> _handleUpload() async {
+    // Implement cloud upload logic here
     _showSnackBar('Upload functionality not implemented yet');
   }
 
@@ -137,7 +139,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   void _handleCancel() {
     _deleteTempFiles();
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const HomePage()),
+      MaterialPageRoute(builder: (context) => const SelectPhoto()),
       (Route<dynamic> route) => false,
     );
   }

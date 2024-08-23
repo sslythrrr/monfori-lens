@@ -146,7 +146,7 @@ List<AssetEntity> _getAllPhotos() {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: const Text('Semua Gambar', style: TextStyle(color: Colors.white)),
+        title: const Text('All Photos', style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _isLoading && _photos.isEmpty
