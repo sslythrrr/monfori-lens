@@ -73,30 +73,48 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _loadAlbums() async {
-    final albums = await PhotoManager.getAssetPathList(
-      type: RequestType.image,
-      filterOption: FilterOptionGroup(
-        imageOption: const FilterOption(
-          sizeConstraint: SizeConstraint(minWidth: 0, maxWidth: 100000, minHeight: 0, maxHeight: 100000),
-        ),
-        createTimeCond: DateTimeCond(
-          min: DateTime(1970),
-          max: DateTime.now(),
-        ),
+Future<void> _loadAlbums() async {
+  final albums = await PhotoManager.getAssetPathList(
+    type: RequestType.image,
+    filterOption: FilterOptionGroup(
+      imageOption: const FilterOption(
+        sizeConstraint: SizeConstraint(minWidth: 0, maxWidth: 100000, minHeight: 0, maxHeight: 100000),
       ),
-    );
-    albums.sort((a, b) {
-      final aModified = a.lastModified ?? DateTime(1970);
-      final bModified = b.lastModified ?? DateTime(1970);
-      return bModified.compareTo(aModified);
-    });
-    // Remove the "Recent" album
-    albums.removeWhere((album) => album.name == "Recent");
-    setState(() {
-      _albums = albums;
-    });
+      createTimeCond: DateTimeCond(
+        min: DateTime(1970),
+        max: DateTime.now(),
+      ),
+    ),
+  );
+
+  final List<Map<String, dynamic>> albumWithDates = [];
+
+  // Iterate through each album to get the most recent modification date from the photos inside
+  for (var album in albums) {
+    final recentAssets = await album.getAssetListRange(start: 0, end: 1); // Get the most recent asset
+    DateTime? lastModified;
+    if (recentAssets.isNotEmpty) {
+      lastModified = recentAssets.first.modifiedDateTime;
+    } else {
+      lastModified = DateTime(1970); // If no photos, set a default old date
+    }
+    albumWithDates.add({'album': album, 'lastModified': lastModified});
   }
+
+  // Sort the list based on the modified date of the latest photo inside each album
+  albumWithDates.sort((a, b) => b['lastModified'].compareTo(a['lastModified']));
+
+  // Extract the sorted albums
+  final sortedAlbums = albumWithDates.map((item) => item['album'] as AssetPathEntity).toList();
+
+  // Remove the "Recent" album
+  sortedAlbums.removeWhere((album) => album.name == "Recent");
+
+  setState(() {
+    _albums = sortedAlbums;
+  });
+}
+
 
   void _updateSelectedMedias(List<Media> medias) {
     setState(() {
@@ -182,49 +200,124 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildEmptyPage() {
+ Widget _buildEmptyPage() {
   return Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          Icons.photo_library_outlined,
-          color: Colors.white.withOpacity(0.6),
-          size: 80,
-        ),
-        const SizedBox(height: 20),
-        Text(
-          'No Recent Photos',
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.85),
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'You can start by selecting photos.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.6),
-            fontSize: 16,
-          ),
-        ),
-        const SizedBox(height: 40),
-        ElevatedButton(
-          onPressed: _openSelectPhoto,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blueAccent,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(25),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildAnimatedIcon(),
+          const SizedBox(height: 24),
+          const Text(
+            'Belum Ada Foto',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          child: const Text(
-            'Select Photos',
+          const SizedBox(height: 12),
+          const Text(
+            'Ayo mulai atur koleksi fotomu!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 40),
+          _buildSelectPhotoButton(),
+          const SizedBox(height: 60),
+          _buildStepsCard(),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildAnimatedIcon() {
+  return ShaderMask(
+    shaderCallback: (Rect bounds) {
+      return const LinearGradient(
+        colors: [Colors.blueAccent, Colors.purpleAccent],
+      ).createShader(bounds);
+    },
+    child: const Icon(
+      Icons.add_a_photo,
+      size: 100,
+      color: Colors.white,
+    ),
+  );
+}
+
+Widget _buildSelectPhotoButton() {
+  return ElevatedButton(
+    onPressed: _openSelectPhoto,
+    style: ElevatedButton.styleFrom(
+      backgroundColor: Colors.blueAccent,
+      foregroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(30),
+      ),
+      elevation: 0,
+    ),
+    child: const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.add_photo_alternate, size: 24),
+        SizedBox(width: 8),
+        Text(
+          'Pilih Foto',
+          style: TextStyle(fontSize: 18),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildStepsCard() {
+  return Card(
+    color: Colors.white.withOpacity(0.1),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          const Text(
+            'Cara Mudah Mengatur Foto',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildStepItem(Icons.photo_library, 'Pilih foto dari galeri'),
+          _buildStepItem(Icons.compare_arrows, 'Pratinjau hasil dan sesuaikan urutan'),
+          _buildStepItem(Icons.save_alt, 'Simpan ke album'),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildStepItem(IconData icon, String description) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Row(
+      children: [
+        Icon(icon, color: Colors.blueAccent, size: 24),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            description,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
             ),
           ),
         ),

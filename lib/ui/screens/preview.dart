@@ -3,11 +3,10 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:monforilens/ui/screens/finalaction.dart';
+import 'package:monforilens/ui/screens/results.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:path/path.dart' as path;
-import 'package:intl/intl.dart';
 
 class Preview extends StatefulWidget {
   final List<AssetEntity> sortedPhotos;
@@ -27,12 +26,9 @@ class _PreviewState extends State<Preview> {
     _photos = List.from(widget.sortedPhotos);
   }
 
-  void _swapPhotos(int oldIndex, int newIndex) {
+  void _reorderPhotos(int oldIndex, int newIndex) {
     setState(() {
-      if (oldIndex < newIndex) {
-        newIndex -= 1;
-      }
-      final AssetEntity item = _photos.removeAt(oldIndex);
+      final item = _photos.removeAt(oldIndex);
       _photos.insert(newIndex, item);
     });
   }
@@ -43,8 +39,7 @@ class _PreviewState extends State<Preview> {
       AssetEntity photo = _photos[i];
       File? file = await photo.file;
       if (file != null) {
-        //String formattedDate = DateFormat('MMdd').format(photo.createDateTime);
-        String suffix = 'mf${_getRomanNumeral(i + 1)}_';
+        String suffix = 'mf${(i + 1).toString().padLeft(2, '0')}_';
         String newName = '$suffix${path.basenameWithoutExtension(file.path)}${path.extension(file.path)}';
 
         String targetDir = '/storage/emulated/0/Monforilens/.temp';
@@ -61,14 +56,6 @@ class _PreviewState extends State<Preview> {
     return renamedFiles;
   }
 
-  String _getRomanNumeral(int number) {
-    const romanNumerals = {
-      1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V',
-      6: 'VI', 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X'
-    };
-    return romanNumerals[number] ?? '';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -76,7 +63,7 @@ class _PreviewState extends State<Preview> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         title: const Text(
-          'Preview and Adjust',
+          'Pratinjau Hasil',
           style: TextStyle(color: Colors.white),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
@@ -87,12 +74,12 @@ class _PreviewState extends State<Preview> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => FinalActionScreen(processedFiles: processedFiles),
+                  builder: (context) => ResultsScreen(processedFiles: processedFiles),
                 ),
               );
             },
             child: const Text(
-              "Confirm",
+              "Konfirmasi",
               style: TextStyle(color: Colors.white),
             ),
           ),
@@ -100,7 +87,7 @@ class _PreviewState extends State<Preview> {
       ),
       body: ReorderableGridView.builder(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
+          crossAxisCount: 4,
           crossAxisSpacing: 4,
           mainAxisSpacing: 4,
         ),
@@ -111,9 +98,33 @@ class _PreviewState extends State<Preview> {
             future: _photos[index].thumbnailDataWithSize(const ThumbnailSize(300, 300)),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
-                return Image.memory(
-                  snapshot.data!,
-                  fit: BoxFit.cover,
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.memory(
+                      snapshot.data!,
+                      fit: BoxFit.cover,
+                    ),
+                    Positioned(
+                      right: 4,
+                      bottom: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${index + 1}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               } else {
                 return const Center(child: CircularProgressIndicator());
@@ -121,7 +132,21 @@ class _PreviewState extends State<Preview> {
             },
           );
         },
-        onReorder: _swapPhotos,
+        onReorder: _reorderPhotos,
+        dragWidgetBuilder: (index, child) {
+          return Container(
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withOpacity(0.5),
+                  blurRadius: 8,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: child,
+          );
+        },
       ),
     );
   }
