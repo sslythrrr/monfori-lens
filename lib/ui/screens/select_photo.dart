@@ -31,8 +31,17 @@ class _SelectPhotoState extends State<SelectPhoto> {
   @override
   void initState() {
     super.initState();
+    _resetState();  // Tambahkan ini
     _loadAlbums();
     _scrollController.addListener(_scrollListener);
+  }
+
+   void _resetState() {
+    _photos.clear();
+    _selectedPhotos.clear();
+    _thumbnailCache.clear();
+    _groupedPhotos.clear();
+    _currentPage = 0;
   }
 
   @override
@@ -81,19 +90,24 @@ class _SelectPhotoState extends State<SelectPhoto> {
     }
 
     // Sort the list based on the modified date of the latest photo inside each album
-    albumWithDates.sort((a, b) => b['lastModified'].compareTo(a['lastModified']));
+albumWithDates.sort((a, b) {
+  // Check if either album is named "Recent"
+  if (a['album'].name == "Recent") return -1; // Always prioritize "Recent"
+  if (b['album'].name == "Recent") return 1;  // Always prioritize "Recent"
 
-    // Extract the sorted albums
-    final sortedAlbums = albumWithDates.map((item) => item['album'] as AssetPathEntity).toList();
+  // Otherwise, sort based on the lastModified date
+  return b['lastModified'].compareTo(a['lastModified']);
+});
 
-    // Remove the "Recent" album
-    sortedAlbums.removeWhere((album) => album.name == "Recent");
+// Extract the sorted albums
+final sortedAlbums = albumWithDates.map((item) => item['album'] as AssetPathEntity).toList();
+
 
     setState(() {
       _albums = sortedAlbums;
     });
 
-    _loadPhotosFromAlbum(sortedAlbums.first);
+    await _loadPhotosFromAlbum(sortedAlbums.first);
   } else {
     setState(() {
       _isLoading = false;
@@ -507,6 +521,9 @@ class _AlbumPhotoGridViewState extends State<AlbumPhotoGridView> {
       _loadMorePhotos();
     }
   }
+  
+  //cache
+
 
   Future<void> _loadPhotosFromAlbum() async {
     setState(() {
