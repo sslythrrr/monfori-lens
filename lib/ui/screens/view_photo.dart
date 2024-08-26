@@ -54,12 +54,6 @@ class _ViewPhotoScreenState extends State<ViewPhotoScreen> {
         
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              // TODO: Implementasi fungsi edit
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.info),
             onPressed: () {
               _showPhotoDetails(context);

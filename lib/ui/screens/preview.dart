@@ -71,7 +71,7 @@ String targetDir = '$appDir/Monforilens/.temp';
       appBar: AppBar(
         backgroundColor: Colors.black,
         title: const Text(
-          'Pratinjau Hasil',
+          'Penyesuaian Akhir',
           style: TextStyle(color: Colors.white),
         ),
         iconTheme: const IconThemeData(color: Colors.white),

@@ -25,6 +25,7 @@ class _HomePageState extends State<HomePage> {
   final List<Media> _selectedMedias = [];
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -144,6 +145,19 @@ Future<void> _loadAlbums() async {
 );
   }
 
+  Future<void> _reloadGallery() async {
+  setState(() {
+    _isLoading = true;
+  });
+  
+  await _loadRecentPhotos();
+  await _loadAlbums();
+  
+  setState(() {
+    _isLoading = false;
+  });
+}
+
   void _openCamera() async {
     final result = await Navigator.push(
       context,
@@ -159,18 +173,23 @@ Future<void> _loadAlbums() async {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.black,
-        title: const Text('MonforiLens', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white),
-            onPressed: () {
-              // Implementasi halaman pengaturan
-            },
+  elevation: 0,
+  backgroundColor: Colors.black,
+  title: const Text('MonforiLens', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+  actions: [
+    _isLoading
+        ? const Padding(
+            padding: EdgeInsets.all(6.0),
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          )
+        : IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _reloadGallery,
           ),
-        ],
-      ),
+  ],
+),
       body: Column(
         children: [
           Expanded(
@@ -182,8 +201,8 @@ Future<void> _loadAlbums() async {
                 });
               },
               children: [
-                _buildEmptyPage(),
-                _buildContentPage(),
+                _pilihfoto(),
+                _galeri(),
               ],
             ),
           ),
@@ -200,7 +219,7 @@ Future<void> _loadAlbums() async {
     );
   }
 
- Widget _buildEmptyPage() {
+ Widget _pilihfoto() {
   return Center(
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -210,7 +229,7 @@ Future<void> _loadAlbums() async {
           _buildAnimatedIcon(),
           const SizedBox(height: 24),
           const Text(
-            'Belum Ada Foto',
+            'Atur Koleksi Fotomu',
             style: TextStyle(
               color: Colors.white,
               fontSize: 28,
@@ -219,7 +238,7 @@ Future<void> _loadAlbums() async {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Ayo mulai atur koleksi fotomu!',
+            'Pilih, atur, dan kelola foto-fotomu dengan mudah',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white70,
@@ -288,14 +307,14 @@ Widget _buildStepsCard() {
       child: Column(
         children: [
           const Text(
-            'Cara Mudah Mengatur Foto',
+            'Cara Menggunakan Aplikasi',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _buildStepItem(Icons.photo_library, 'Pilih foto dari galeri'),
           _buildStepItem(Icons.compare_arrows, 'Pratinjau hasil dan sesuaikan urutan'),
           _buildStepItem(Icons.save_alt, 'Simpan ke album'),
@@ -327,7 +346,7 @@ Widget _buildStepItem(IconData icon, String description) {
 }
 
 
-  Widget _buildContentPage() {
+  Widget _galeri() {
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(

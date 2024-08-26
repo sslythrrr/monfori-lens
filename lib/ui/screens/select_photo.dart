@@ -1,3 +1,5 @@
+// ignore_for_file: library_private_types_in_public_api
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -319,7 +321,7 @@ class _SelectPhotoState extends State<SelectPhoto> {
     );
   }
 }
-class PhotoThumbnail extends StatelessWidget {
+class PhotoThumbnail extends StatefulWidget {
   final AssetEntity photo;
   final VoidCallback onTap;
   final bool isSelected;
@@ -334,26 +336,42 @@ class PhotoThumbnail extends StatelessWidget {
   });
 
   @override
+  _PhotoThumbnailState createState() => _PhotoThumbnailState();
+}
+
+class _PhotoThumbnailState extends State<PhotoThumbnail> {
+  Uint8List? _thumbnail;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadThumbnail();
+  }
+
+  Future<void> _loadThumbnail() async {
+    final thumbnail = await widget.getThumbnail(widget.photo);
+    if (mounted) {
+      setState(() {
+        _thumbnail = thumbnail;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          FutureBuilder<Uint8List?>(
-            future: getThumbnail(photo),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
-                return Image.memory(
-                  snapshot.data!,
-                  fit: BoxFit.cover,
-                );
-              } else {
-                return const Center(child: CircularProgressIndicator());
-              }
-            },
-          ),
-          if (isSelected)
+          if (_thumbnail != null)
+            Image.memory(
+              _thumbnail!,
+              fit: BoxFit.cover,
+            )
+          else
+            const Center(child: CircularProgressIndicator()),
+          if (widget.isSelected)
             Positioned(
               right: 4,
               top: 4,
