@@ -56,6 +56,9 @@ dependencies:
   flutter_launcher_icons: ^0.10.0
   dart_levenshtein: ^1.0.1
   carousel_slider: ^5.0.0
+  shared_preferences: ^2.0.0
+  logging: ^1.2.0
+  media_scanner: ^2.1.0
 
 dev_dependencies:
   flutter_test:

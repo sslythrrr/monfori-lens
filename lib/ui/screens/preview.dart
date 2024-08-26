@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:monforilens/ui/screens/results.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 import 'package:photo_manager/photo_manager.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
 class Preview extends StatefulWidget {
@@ -33,6 +34,11 @@ class _PreviewState extends State<Preview> {
     });
   }
 
+  Future<String> getAppDirectory() async {
+  final directory = await getExternalStorageDirectory();
+  return directory?.path ?? (await getApplicationDocumentsDirectory()).path;
+}
+
   Future<List<File>> _processAndRenamePhotos() async {
     List<File> renamedFiles = [];
     for (int i = 0; i < _photos.length; i++) {
@@ -42,7 +48,9 @@ class _PreviewState extends State<Preview> {
         String suffix = 'mf${(i + 1).toString().padLeft(2, '0')}_';
         String newName = '$suffix${path.basenameWithoutExtension(file.path)}${path.extension(file.path)}';
 
-        String targetDir = '/storage/emulated/0/Monforilens/.temp';
+        String appDir = await getAppDirectory();
+String targetDir = '$appDir/Monforilens/.temp';
+
         Directory directory = Directory(targetDir);
         if (!directory.existsSync()) {
           directory.createSync(recursive: true);

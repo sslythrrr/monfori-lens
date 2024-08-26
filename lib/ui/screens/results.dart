@@ -1,11 +1,14 @@
-// ignore_for_file: library_private_types_in_public_api, deprecated_member_use
+// ignore_for_file: library_private_types_in_public_api
 
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
-import 'home.dart'; // Pastikan Anda mengimpor HomePage
+import 'package:photo_manager/photo_manager.dart';
+import 'home.dart';
 
 class ResultsScreen extends StatefulWidget {
   final List<File> processedFiles;
@@ -36,7 +39,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   }
 
   Future<bool> _onWillPop() async {
-    Navigator.of(context).pop(); // Kembali ke screen sebelumnya tanpa menghapus file temp
+    Navigator.of(context).pop();
     return false;
   }
 
@@ -53,15 +56,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              Navigator.of(context).pop(); // Kembali ke screen sebelumnya tanpa menghapus file temp
+              Navigator.of(context).pop();
             },
           ),
           actions: [
             IconButton(
               icon: const Icon(Icons.home),
-              onPressed: () {
-                _handleCancel(); // Balik ke HomePage dan hapus file temp
-              },
+              onPressed: _handleCancel,
             ),
           ],
         ),
@@ -110,29 +111,90 @@ class _ResultsScreenState extends State<ResultsScreen> {
     );
   }
 
+  Future<String> _getSafePath() async {
+    if (Platform.isAndroid) {
+      return '/storage/emulated/0/MonforiLens';
+    } else {
+      final directory = await getApplicationDocumentsDirectory();
+      return '${directory.path}/MonforiLens';
+    }
+  }
+
   Future<void> _handleSave() async {
-    final folderName = _folderNameController.text;
-    final directory = Directory('/storage/emulated/0/MonforiLens/$folderName');
-    await directory.create(recursive: true);
+  bool hasPermission = await _requestStoragePermission();
+  if (!hasPermission) {
+    _showSnackBar('Izin penyimpanan diperlukan untuk menyimpan file');
+    return;
+  }
+
+  final folderName = _folderNameController.text;
+  final basePath = await _getSafePath();
+  final directory = Directory('$basePath/$folderName');
+  
+  try {
+    // Buat folder MonforiLens jika belum ada
+    await Directory(basePath).create(recursive: true);
+    
+    // Buat folder output, tambahkan angka jika sudah ada
+    String finalFolderPath = directory.path;
+    int counter = 1;
+    while (await Directory(finalFolderPath).exists()) {
+      finalFolderPath = '$basePath/${folderName}_$counter';
+      counter++;
+    }
+    await Directory(finalFolderPath).create();
 
     for (File file in widget.processedFiles) {
-      final newPath = path.join(directory.path, path.basename(file.path));
+      final newPath = path.join(finalFolderPath, path.basename(file.path));
       await file.copy(newPath);
+      
+      // Simpan file ke galeri menggunakan photo_manager
+      final result = await PhotoManager.editor.saveImageWithPath(
+        newPath,
+        title: path.basename(newPath),
+      );
+      
+      if (result == null) {
+        print('Failed to save file to gallery: $newPath');
+      }
     }
 
-    _showSnackBar('Files saved to ${directory.path}');
+    _showSnackBar('Files saved to $finalFolderPath and added to gallery');
+  } catch (e) {
+    _showSnackBar('Error saving files: $e');
   }
+}
+
+  Future<bool> _requestStoragePermission() async {
+  if (Platform.isAndroid) {
+    if (await Permission.manageExternalStorage.isGranted) {
+      return true;
+    }
+    PermissionStatus status = await Permission.manageExternalStorage.request();
+    if (status.isGranted) {
+      return true;
+    }
+    if (status.isPermanentlyDenied) {
+      await openAppSettings();
+    }
+    return false;
+  }
+  return true;
+}
 
   Future<void> _handleUpload() async {
-    _showSnackBar('Upload functionality not implemented yet');
+    _showSnackBar('Segera diimplementasikan');
   }
 
-  Future<void> _handleShare() async {
-    await Share.shareXFiles(
-      widget.processedFiles.map((file) => XFile(file.path)).toList(),
-      subject: 'Sharing processed images',
-    );
-  }
+Future<void> _handleShare() async {
+  List<XFile> xFiles = widget.processedFiles.map((file) => XFile(file.path)).toList();
+
+  await Share.shareXFiles(
+    xFiles,
+    subject: 'Sharing processed images',
+  );
+}
+
 
   void _handleCancel() {
     _deleteTempFiles();
@@ -144,7 +206,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   Future<void> _deleteTempFiles() async {
     for (File file in widget.processedFiles) {
-      await file.delete();
+      try {
+        await file.delete();
+      } catch (e) {
+        print('Error deleting temp file: $e');
+      }
     }
   }
 
