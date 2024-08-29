@@ -67,14 +67,14 @@ String targetDir = '$appDir/Monforilens/.temp';
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.white70,
         title: const Text(
           'Penyesuaian Akhir',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.black),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.black),
         actions: [
           TextButton(
             onPressed: () async {
@@ -88,7 +88,7 @@ String targetDir = '$appDir/Monforilens/.temp';
             },
             child: const Text(
               "Konfirmasi",
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.black),
             ),
           ),
         ],
@@ -119,7 +119,7 @@ String targetDir = '$appDir/Monforilens/.temp';
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5),
+                          color: Colors.green.withOpacity(0.8),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(

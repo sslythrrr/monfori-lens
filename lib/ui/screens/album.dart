@@ -1,10 +1,13 @@
 // ignore_for_file: library_private_types_in_public_api, use_build_context_synchronously
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:monforilens/ui/screens/view_photo.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 
 class AlbumPage extends StatefulWidget {
   final AssetPathEntity album;
@@ -22,6 +25,8 @@ class _AlbumPageState extends State<AlbumPage> {
   bool _isLoading = false;
   int _currentPage = 0;
   final int _pageSize = 100;
+  Set<AssetEntity> _selectedPhotos = {};
+  bool _isSelectionMode = false;
 
   @override
   void initState() {
@@ -90,41 +95,118 @@ class _AlbumPageState extends State<AlbumPage> {
     setState(() {});
   }
 
-void _openPhotoDetail(AssetEntity photo, int index, List<AssetEntity> photos) {
-  List<AssetEntity> allPhotos = _getAllPhotos();
-
-  int overallIndex = allPhotos.indexOf(photo);
-
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => ViewPhotoScreen(
-        photoList: allPhotos,
-        initialIndex: overallIndex,
-      ),
-    ),
-  );
-}
-
-List<AssetEntity> _getAllPhotos() {
-  List<AssetEntity> allPhotos = [];
-  for (var photos in _groupedPhotos.values) {
-    allPhotos.addAll(photos);
+  void _togglePhotoSelection(AssetEntity photo) {
+    setState(() {
+      if (_selectedPhotos.contains(photo)) {
+        _selectedPhotos.remove(photo);
+      } else {
+        _selectedPhotos.add(photo);
+      }
+      _isSelectionMode = _selectedPhotos.isNotEmpty;
+    });
   }
-  return allPhotos;
-}
+
+  void _selectAllPhotos() {
+    setState(() {
+      _selectedPhotos = Set.from(_photos);
+      _isSelectionMode = true;
+    });
+  }
+
+  void _deselectAllPhotos() {
+    setState(() {
+      _selectedPhotos.clear();
+      _isSelectionMode = false;
+    });
+  }
+
+  Future<void> _shareSelectedPhotos() async {
+    final files = await Future.wait(_selectedPhotos.map((photo) => photo.file));
+    final xFiles = files.whereType<File>().map((file) => XFile(file.path)).toList();
+    await Share.shareXFiles(xFiles);
+  }
+
+  Future<void> _deleteSelectedPhotos() async {
+    final result = await PhotoManager.editor.deleteWithIds(_selectedPhotos.map((p) => p.id).toList());
+    if (result.isNotEmpty) {
+      setState(() {
+        _photos.removeWhere((p) => _selectedPhotos.contains(p));
+        _groupedPhotos.forEach((date, photos) {
+          photos.removeWhere((p) => _selectedPhotos.contains(p));
+        });
+        _groupedPhotos.removeWhere((date, photos) => photos.isEmpty);
+        _selectedPhotos.clear();
+        _isSelectionMode = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selected photos deleted successfully')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to delete selected photos')),
+      );
+    }
+  }
+
+  void _openPhotoDetail(AssetEntity photo, int index, List<AssetEntity> photos) {
+    if (_isSelectionMode) {
+      _togglePhotoSelection(photo);
+    } else {
+      List<AssetEntity> allPhotos = _getAllPhotos();
+      int overallIndex = allPhotos.indexOf(photo);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ViewPhotoScreen(
+            photoList: allPhotos,
+            initialIndex: overallIndex,
+          ),
+        ),
+      );
+    }
+  }
+
+  List<AssetEntity> _getAllPhotos() {
+    List<AssetEntity> allPhotos = [];
+    for (var photos in _groupedPhotos.values) {
+      allPhotos.addAll(photos);
+    }
+    return allPhotos;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text(widget.album.name, style: const TextStyle(color: Colors.white)),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: Colors.white70,
+        title: Text(_isSelectionMode ? '${_selectedPhotos.length} selected' : widget.album.name, 
+                    style: const TextStyle(color: Colors.black)),
+        iconTheme: const IconThemeData(color: Colors.black),
+        actions: _isSelectionMode
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.share),
+                  onPressed: _shareSelectedPhotos,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: _deleteSelectedPhotos,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.select_all),
+                  onPressed: _selectAllPhotos,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: _deselectAllPhotos,
+                ),
+              ]
+            : null,
       ),
       body: _isLoading && _photos.isEmpty
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          ? const Center(child: CircularProgressIndicator(color: Colors.black))
           : ListView.builder(
               controller: _scrollController,
               itemCount: _groupedPhotos.length + (_isLoading ? 1 : 0),
@@ -133,7 +215,7 @@ List<AssetEntity> _getAllPhotos() {
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.all(8.0),
-                      child: CircularProgressIndicator(color: Colors.white),
+                      child: CircularProgressIndicator(color: Colors.black),
                     ),
                   );
                 }
@@ -147,7 +229,7 @@ List<AssetEntity> _getAllPhotos() {
                       child: Text(
                         date,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Colors.black,
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
                         ),
@@ -163,17 +245,31 @@ List<AssetEntity> _getAllPhotos() {
                       ),
                       itemCount: photos.length,
                       itemBuilder: (context, photoIndex) {
-                        return FutureBuilder<Uint8List?>(
-                          future: photos[photoIndex].thumbnailDataWithSize(const ThumbnailSize(200, 200)),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
-                              return GestureDetector(
-                                onTap: () => _openPhotoDetail(photos[photoIndex], photoIndex, photos),
-                                child: Image.memory(snapshot.data!, fit: BoxFit.cover),
-                              );
-                            }
-                            return Container(color: Colors.grey[800]);
-                          },
+                        final photo = photos[photoIndex];
+                        return GestureDetector(
+                          onTap: () => _openPhotoDetail(photo, photoIndex, photos),
+                          onLongPress: () => _togglePhotoSelection(photo),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              FutureBuilder<Uint8List?>(
+                                future: photo.thumbnailDataWithSize(const ThumbnailSize(200, 200)),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
+                                    return Image.memory(snapshot.data!, fit: BoxFit.cover);
+                                  }
+                                  return Container(color: Colors.grey[800]);
+                                },
+                              ),
+                              if (_selectedPhotos.contains(photo))
+                                Positioned.fill(
+                                  child: Container(
+                                    color: Colors.white.withOpacity(0.7),
+                                    child: const Icon(Icons.check, color: Colors.green),
+                                  ),
+                                ),
+                            ],
+                          ),
                         );
                       },
                     ),

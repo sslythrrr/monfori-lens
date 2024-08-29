@@ -35,9 +35,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
     _folderNameController.dispose();
     super.dispose();
   }
-
+ 
   String _getDefaultFolderName() {
-    return 'monforilens-${DateFormat('yyyyMMddHHmmss').format(DateTime.now())}';
+    return 'mf-${DateFormat('yyyyMMddHHmmss').format(DateTime.now())}';
   }
 
   @override
@@ -49,11 +49,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
         Navigator.of(context).pop();
       },
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.white,
         appBar: AppBar(
-          backgroundColor: Colors.black,
-          title: const Text('Hasil Akhir', style: TextStyle(color: Colors.white)),
-          iconTheme: const IconThemeData(color: Colors.white),
+          backgroundColor: Colors.white70,
+          title: const Text('Hasil Akhir', style: TextStyle(color: Colors.black)),
+          iconTheme: const IconThemeData(color: Colors.black),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(),
@@ -72,15 +72,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
             children: [
               TextField(
                 controller: _folderNameController,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: Colors.black),
                 decoration: InputDecoration(
                   labelText: 'Folder Name',
-                  labelStyle: const TextStyle(color: Colors.white70),
+                  labelStyle: const TextStyle(color: Colors.black),
                   enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                    borderSide: BorderSide(color: Colors.black.withOpacity(0.3)),
                   ),
                   focusedBorder: const OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
+                    borderSide: BorderSide(color: Colors.black),
                   ),
                 ),
               ),

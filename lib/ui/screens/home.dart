@@ -10,7 +10,7 @@ import 'package:monforilens/ui/screens/album.dart';
 import 'package:monforilens/ui/screens/photos.dart';
 import 'package:monforilens/models/media.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -168,28 +168,35 @@ Future<void> _loadAlbums() async {
     }
   }
 
-  @override
+   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,  // Changed to white background
       appBar: AppBar(
-  elevation: 0,
-  backgroundColor: Colors.black,
-  title: const Text('MonforiLens', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-  actions: [
-    _isLoading
-        ? const Padding(
-            padding: EdgeInsets.all(6.0),
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          )
-        : IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: _reloadGallery,
-          ),
-  ],
-),
+        elevation: 0,
+        backgroundColor: Colors.white70,  // Changed to white
+        title: Text(
+    'MonforiLens',
+    style: GoogleFonts.roboto(  // Change this to your preferred font
+      color: Colors.green,      // Change to green color
+      fontWeight: FontWeight.w600, // Make the text bold
+      fontSize: 24,  // Increase font size if needed for a luxurious look
+    ),
+  ),
+        actions: [
+          _isLoading
+              ? const Padding(
+                  padding: EdgeInsets.all(6.0),
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.green),  // Green accent color
+                  ),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.refresh, color: Colors.green),  // Green accent color
+                  onPressed: _reloadGallery,
+                ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -211,7 +218,7 @@ Future<void> _loadAlbums() async {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _openCamera,
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.green,  // Green accent color
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: const Icon(Icons.camera_alt, color: Colors.white),
@@ -220,40 +227,40 @@ Future<void> _loadAlbums() async {
   }
 
  Widget _pilihfoto() {
-  return Center(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildAnimatedIcon(),
-          const SizedBox(height: 24),
-          const Text(
-            'Atur Koleksi Fotomu',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildAnimatedIcon(),
+            const SizedBox(height: 24),
+            const Text(
+              'Atur Koleksi Fotomu',
+              style: TextStyle(
+                color: Colors.black,  // Changed to black text
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Pilih, atur, dan kelola foto-fotomu dengan mudah',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
+            const SizedBox(height: 12),
+            const Text(
+              'Pilih, atur, dan kelola foto-fotomu dengan mudah',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.black54,  // Lighter shade for subtext
+                fontSize: 16,
+              ),
             ),
-          ),
-          const SizedBox(height: 40),
-          _buildSelectPhotoButton(),
-          const SizedBox(height: 60),
-          _buildStepsCard(),
-        ],
+            const SizedBox(height: 40),
+            _buildSelectPhotoButton(),
+            const SizedBox(height: 60),
+            _buildStepsCard(),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
 Widget _buildAnimatedIcon() {
   return ShaderMask(
@@ -265,85 +272,85 @@ Widget _buildAnimatedIcon() {
     child: const Icon(
       Icons.add_a_photo,
       size: 100,
-      color: Colors.white,
+      color: Color.fromARGB(255, 253, 253, 253),
     ),
   );
 }
 
 Widget _buildSelectPhotoButton() {
-  return ElevatedButton(
-    onPressed: _openSelectPhoto,
-    style: ElevatedButton.styleFrom(
-      backgroundColor: Colors.blueAccent,
-      foregroundColor: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(30),
-      ),
-      elevation: 0,
-    ),
-    child: const Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.add_photo_alternate, size: 24),
-        SizedBox(width: 8),
-        Text(
-          'Pilih Foto',
-          style: TextStyle(fontSize: 18),
+    return ElevatedButton(
+      onPressed: _openSelectPhoto,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.green,  // Green accent color
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30),
         ),
-      ],
-    ),
-  );
-}
-
-Widget _buildStepsCard() {
-  return Card(
-    color: Colors.white.withOpacity(0.1),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
+        elevation: 0,
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Cara Menggunakan Aplikasi',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+          Icon(Icons.add_photo_alternate, size: 24),
+          SizedBox(width: 8),
+          Text(
+            'Pilih Foto',
+            style: TextStyle(fontSize: 18),
           ),
-          const SizedBox(height: 12),
-          _buildStepItem(Icons.photo_library, 'Pilih foto dari galeri'),
-          _buildStepItem(Icons.compare_arrows, 'Pratinjau hasil dan sesuaikan urutan'),
-          _buildStepItem(Icons.save_alt, 'Simpan ke album'),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
 
-Widget _buildStepItem(IconData icon, String description) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Row(
-      children: [
-        Icon(icon, color: Colors.blueAccent, size: 24),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            description,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
+Widget _buildStepsCard() {
+    return Card(
+      color: Colors.green.withOpacity(0.9),  // Light green background
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const Text(
+              'Cara Menggunakan Aplikasi',
+              style: TextStyle(
+                color: Colors.white,  // Changed to black text
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildStepItem(Icons.photo_library, 'Pilih foto dari galeri'),
+            _buildStepItem(Icons.compare_arrows, 'Pratinjau hasil dan sesuaikan urutan'),
+            _buildStepItem(Icons.save_alt, 'Simpan ke album'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepItem(IconData icon, String description) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white70, size: 24),  // Green accent color
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              description,
+              style: const TextStyle(
+                color: Colors.white,  // Changed to lighter black
+                fontSize: 16,
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
 
   Widget _galeri() {
@@ -357,7 +364,7 @@ Widget _buildStepItem(IconData icon, String description) {
             padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
             child: Text(
               'Album',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black),
             ),
           ),
         ),
@@ -388,60 +395,48 @@ Widget _buildStepItem(IconData icon, String description) {
   }
 
   Widget _buildRecentPhotos() {
-  return SizedBox(
-    height: 180,
+  return Padding(
+    padding: const EdgeInsets.all(16),
     child: Column(
-      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            'Foto Terbaru',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Foto Terbaru',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black),
+            ),
+            TextButton(
+              onPressed: _openPhotosPage,
+              child: const Text('Lihat Semua', style: TextStyle(color: Colors.blue)),
+            ),
+          ],
         ),
-        Expanded(
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 100,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            itemCount: _recentPhotos.length + 1,
+            itemCount: _recentPhotos.length.clamp(0, 10),  // Show up to 5 recent photos
             itemBuilder: (context, index) {
-              if (index == _recentPhotos.length) {
-                return Center(
-                  child: TextButton(
-                    onPressed: _openPhotosPage,
-                    child: const Text('Lihat Semua', style: TextStyle(color: Colors.blue)),
-                  ),
-                );
-              }
-              return FutureBuilder<Uint8List?>(
-                future: _recentPhotos[index].thumbnailDataWithSize(const ThumbnailSize(200, 200)),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
-                    return Padding(
-                      padding: const EdgeInsets.only(left: 16),
-                      child: GestureDetector(
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FutureBuilder<Uint8List?>(
+                  future: _recentPhotos[index].thumbnailDataWithSize(const ThumbnailSize(200, 200)),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
+                      return GestureDetector(
                         onTap: () => _openPhotoDetail(_recentPhotos[index], index, _recentPhotos),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.memory(snapshot.data!, width: 100, height: 100, fit: BoxFit.cover),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              DateFormat('dd MMM').format(_recentPhotos[index].createDateTime),
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
-                            ),
-                          ],
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(snapshot.data!, width: 100, height: 100, fit: BoxFit.cover),
                         ),
-                      ),
-                    );
-                  }
-                  return Container(width: 100, height: 100, color: Colors.grey[800]);
-                },
+                      );
+                    }
+                    return Container(width: 100, height: 100, color: Colors.grey[300]);
+                  },
+                ),
               );
             },
           ),
@@ -585,7 +580,7 @@ Widget _buildStepItem(IconData icon, String description) {
 
   Widget _buildShimmerEffect() {
     return Shimmer.fromColors(
-      baseColor: Colors.grey[800]!,
+      baseColor: Colors.white,
       highlightColor: Colors.grey[700]!,
       child: Container(
         decoration: BoxDecoration(

@@ -31,12 +31,12 @@ class _SelectPhotoState extends State<SelectPhoto> {
   @override
   void initState() {
     super.initState();
-    _resetState();  // Tambahkan ini
+    _resetState();
     _loadAlbums();
     _scrollController.addListener(_scrollListener);
   }
 
-   void _resetState() {
+  void _resetState() {
     _photos.clear();
     _selectedPhotos.clear();
     _thumbnailCache.clear();
@@ -59,49 +59,54 @@ class _SelectPhotoState extends State<SelectPhoto> {
   }
 
   Future<void> _loadAlbums() async {
-  setState(() {
-    _isLoading = true;
-  });
-
-  final PermissionState ps = await PhotoManager.requestPermissionExtend();
-  if (ps != PermissionState.authorized && ps != PermissionState.limited) {
-    if (!mounted) return;
     setState(() {
-      _isLoading = false;
+      _isLoading = true;
     });
-    return;
-  }
 
-  final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(type: RequestType.image);
-
-  if (albums.isNotEmpty) {
-    final List<Map<String, dynamic>> albumWithDates = [];
-
-    // Iterate through each album to get the most recent modification date from the photos inside
-    for (var album in albums) {
-      final recentAssets = await album.getAssetListRange(start: 0, end: 1); // Get the most recent asset
-      DateTime? lastModified;
-      if (recentAssets.isNotEmpty) {
-        lastModified = recentAssets.first.modifiedDateTime;
-      } else {
-        lastModified = DateTime(1970); // If no photos, set a default old date
-      }
-      albumWithDates.add({'album': album, 'lastModified': lastModified});
+    final PermissionState ps = await PhotoManager.requestPermissionExtend();
+    if (ps != PermissionState.authorized && ps != PermissionState.limited) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      return;
     }
 
-    // Sort the list based on the modified date of the latest photo inside each album
-albumWithDates.sort((a, b) {
-  // Check if either album is named "Recent"
-  if (a['album'].name == "Recent") return -1; // Always prioritize "Recent"
-  if (b['album'].name == "Recent") return 1;  // Always prioritize "Recent"
+    final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(type: RequestType.image);
 
-  // Otherwise, sort based on the lastModified date
-  return b['lastModified'].compareTo(a['lastModified']);
-});
+    if (albums.isNotEmpty) {
+    final List<Map<String, dynamic>> albumWithDates = [];
+    AssetPathEntity? recentAlbum;
 
-// Extract the sorted albums
-final sortedAlbums = albumWithDates.map((item) => item['album'] as AssetPathEntity).toList();
+    for (var album in albums) {
+      if (album.name == "Recent") {
+        recentAlbum = album;
+        continue;
+      }
+    }
 
+      for (var album in albums) {
+        final recentAssets = await album.getAssetListRange(start: 0, end: 1);
+        DateTime? lastModified;
+        if (recentAssets.isNotEmpty) {
+          lastModified = recentAssets.first.modifiedDateTime;
+        } else {
+          lastModified = DateTime(1970);
+        }
+        albumWithDates.add({'album': album, 'lastModified': lastModified});
+      }
+
+      albumWithDates.sort((a, b) {
+        if (a['album'].name == "Recent") return -1;
+        if (b['album'].name == "Recent") return 1;
+        return b['lastModified'].compareTo(a['lastModified']);
+      });
+
+       final sortedAlbums = albumWithDates.map((item) => item['album'] as AssetPathEntity).toList();
+    
+    if (recentAlbum != null) {
+      sortedAlbums.insert(0, recentAlbum);
+    }
 
     setState(() {
       _albums = sortedAlbums;
@@ -114,7 +119,6 @@ final sortedAlbums = albumWithDates.map((item) => item['album'] as AssetPathEnti
     });
   }
 }
-
 
   Future<void> _loadPhotosFromAlbum(AssetPathEntity album) async {
     setState(() {
@@ -160,6 +164,8 @@ final sortedAlbums = albumWithDates.map((item) => item['album'] as AssetPathEnti
     }
   }
 
+  
+
   void _selectPhoto(AssetEntity photo) {
     setState(() {
       if (_selectedPhotos.contains(photo)) {
@@ -181,24 +187,54 @@ final sortedAlbums = albumWithDates.map((item) => item['album'] as AssetPathEnti
   }
 
   Future<void> _navigateToPreview(List<AssetEntity> selectedPhotos) async {
-    List<AssetEntity> sortedPhotos = List.from(selectedPhotos);
-    sortedPhotos.sort((a, b) {
-      int timeCompare = a.createDateTime.compareTo(b.createDateTime);
-      if (timeCompare != 0) return timeCompare;
-      return _compareFilenames(a.title ?? '', b.title ?? '');
-    });
+  List<AssetEntity> sortedPhotos = List.from(selectedPhotos);
+  sortedPhotos.sort((a, b) {
+    // Prioritaskan pengurutan berdasarkan nama file
+    int filenameCompare = _compareFilenames(a.title ?? '', b.title ?? '');
+    if (filenameCompare != 0) return filenameCompare;
+    
+    // Jika nama file sama, urutkan berdasarkan waktu pembuatan
+    return a.createDateTime.compareTo(b.createDateTime);
+  });
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => Preview(sortedPhotos: sortedPhotos),
-      ),
-    );
-  }
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => Preview(sortedPhotos: sortedPhotos),
+    ),
+  );
+}
 
-  int _compareFilenames(String a, String b) {
-    return a.compareTo(b);
+int _compareFilenames(String a, String b) {
+  // Pisahkan nama file dan ekstensi
+  List<String> partsA = a.split('.');
+  List<String> partsB = b.split('.');
+  
+  // Bandingkan nama file tanpa ekstensi
+  String nameA = partsA.length > 1 ? partsA.sublist(0, partsA.length - 1).join('.') : a;
+  String nameB = partsB.length > 1 ? partsB.sublist(0, partsB.length - 1).join('.') : b;
+  
+  // Coba ekstrak angka dari nama file (jika ada)
+  RegExp numericRegex = RegExp(r'\d+');
+  Match? matchA = numericRegex.firstMatch(nameA);
+  Match? matchB = numericRegex.firstMatch(nameB);
+  
+  if (matchA != null && matchB != null) {
+    // Jika kedua nama mengandung angka, bandingkan angka tersebut
+    int numA = int.parse(matchA.group(0)!);
+    int numB = int.parse(matchB.group(0)!);
+    if (numA != numB) return numA.compareTo(numB);
   }
+  
+  // Jika tidak ada angka atau angka sama, lakukan perbandingan string biasa
+  int nameCompare = nameA.compareTo(nameB);
+  if (nameCompare != 0) return nameCompare;
+  
+  // Jika nama file sama, bandingkan ekstensi 
+  String extA = partsA.length > 1 ? partsA.last : '';
+  String extB = partsB.length > 1 ? partsB.last : '';
+  return extA.compareTo(extB);
+}
 
   Future<void> _navigateToAlbumView(AssetPathEntity album) async {
     Navigator.push(
@@ -222,24 +258,17 @@ final sortedAlbums = albumWithDates.map((item) => item['album'] as AssetPathEnti
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text('Pilih Gambar', style: TextStyle(color: Colors.white)),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: Colors.white70,
+        title: const Text('Pilih Gambar', style: TextStyle(color: Colors.black)),
+        iconTheme: const IconThemeData(color: Colors.black),
         actions: [
           TextButton(
             onPressed: _selectAll,
             child: Text(
               _selectedPhotos.length == _photos.length ? "Batalkan Pilih" : "Pilih Semua",
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-          TextButton(
-            onPressed: _selectedPhotos.isEmpty ? null : () => _navigateToPreview(_selectedPhotos.toList()),
-            child: Text(
-              "Proses (${_selectedPhotos.length})",
-              style: TextStyle(color: _selectedPhotos.isEmpty ? Colors.grey : Colors.white),
+              style: const TextStyle(color: Colors.black),
             ),
           ),
         ],
@@ -259,24 +288,27 @@ final sortedAlbums = albumWithDates.map((item) => item['album'] as AssetPathEnti
           ),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.black,
-        currentIndex: _currentTabIndex,
-        onTap: (index) {
-          _pageController.animateToPage(index, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.photo_library, color: Colors.blueAccent),
-            label: 'Photos',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.photo_album, color: Colors.blueAccent),
-            label: 'Albums',
-          ),
-        ],
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.grey,
+      bottomNavigationBar: BottomAppBar(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            IconButton(
+              icon: Icon(Icons.photo_library, color: _currentTabIndex == 0 ? Colors.lightBlue : Colors.grey),
+              onPressed: () => _pageController.animateToPage(0, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut),
+            ),
+            IconButton(
+              icon: Icon(Icons.photo_album, color: _currentTabIndex == 1 ? Colors.lightBlue : Colors.grey),
+              onPressed: () => _pageController.animateToPage(1, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut),
+            ),
+            ElevatedButton(
+              onPressed: _selectedPhotos.isEmpty ? null : () => _navigateToPreview(_selectedPhotos.toList()),
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white, backgroundColor: Colors.green,
+              ),
+              child: Text("Proses (${_selectedPhotos.length})"),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -304,7 +336,7 @@ final sortedAlbums = albumWithDates.map((item) => item['album'] as AssetPathEnti
               child: Text(
                 date,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Colors.black,
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
                 ),
@@ -335,6 +367,7 @@ final sortedAlbums = albumWithDates.map((item) => item['album'] as AssetPathEnti
     );
   }
 }
+
 class PhotoThumbnail extends StatefulWidget {
   final AssetEntity photo;
   final VoidCallback onTap;
@@ -391,12 +424,12 @@ class _PhotoThumbnailState extends State<PhotoThumbnail> {
               top: 4,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.white.withOpacity(0.7),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.check_circle,
-                  color: Colors.lime,
+                  color: Colors.green,
                   size: 24,
                 ),
               ),
@@ -407,7 +440,7 @@ class _PhotoThumbnailState extends State<PhotoThumbnail> {
   }
 }
 
-class AlbumGridView extends StatelessWidget {
+class AlbumGridView extends StatefulWidget {
   final List<AssetPathEntity> albums;
   final Function(AssetPathEntity) onAlbumTapped;
 
@@ -418,7 +451,30 @@ class AlbumGridView extends StatelessWidget {
   });
 
   @override
+  _AlbumGridViewState createState() => _AlbumGridViewState();
+}
+
+class _AlbumGridViewState extends State<AlbumGridView> {
+  final Map<String, Uint8List?> _thumbnailCache = {};
+
+  Future<Uint8List?> _getAlbumThumbnail(AssetPathEntity album) async {
+    if (_thumbnailCache.containsKey(album.id)) {
+      return _thumbnailCache[album.id];
+    }
+
+    final List<AssetEntity> recentAssets = await album.getAssetListRange(start: 0, end: 1);
+    if (recentAssets.isNotEmpty) {
+      final Uint8List? thumbnail = await recentAssets.first.thumbnailDataWithSize(const ThumbnailSize(300, 300));
+      _thumbnailCache[album.id] = thumbnail;
+      return thumbnail;
+    }
+    return null;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final displayedAlbums = widget.albums.where((album) => album.name != "Recent").toList();
+
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -426,25 +482,27 @@ class AlbumGridView extends StatelessWidget {
         mainAxisSpacing: 8,
       ),
       padding: const EdgeInsets.all(8),
-      itemCount: albums.length,
+      itemCount: displayedAlbums.length,
       itemBuilder: (context, index) {
-        final album = albums[index];
+        final album = displayedAlbums[index];
         return FutureBuilder<Uint8List?>(
-          future: album.getAssetListRange(start: 0, end: 1).then((value) => 
-            value.first.thumbnailDataWithSize(const ThumbnailSize(300, 300))),
+          future: _getAlbumThumbnail(album),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
+            if (snapshot.connectionState == ConnectionState.done) {
               return GestureDetector(
-                onTap: () => onAlbumTapped(album),
+                onTap: () => widget.onAlbumTapped(album),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.memory(
-                        snapshot.data!,
-                        fit: BoxFit.cover,
-                      ),
+                      if (snapshot.data != null)
+                        Image.memory(
+                          snapshot.data!,
+                          fit: BoxFit.cover,
+                        )
+                      else
+                        Container(color: Colors.grey[300]),
                       Positioned(
                         bottom: 0,
                         left: 0,
@@ -500,6 +558,7 @@ class _AlbumPhotoGridViewState extends State<AlbumPhotoGridView> {
   Set<AssetEntity> _selectedPhotos = {};
   final Map<String, Uint8List?> _thumbnailCache = {};
   final Map<String, List<AssetEntity>> _groupedPhotos = {};
+  
 
   @override
   void initState() {
@@ -521,9 +580,6 @@ class _AlbumPhotoGridViewState extends State<AlbumPhotoGridView> {
       _loadMorePhotos();
     }
   }
-  
-  //cache
-
 
   Future<void> _loadPhotosFromAlbum() async {
     setState(() {
@@ -610,24 +666,17 @@ class _AlbumPhotoGridViewState extends State<AlbumPhotoGridView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text(widget.album.name, style: const TextStyle(color: Colors.white)),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: Colors.white,
+        title: Text(widget.album.name, style: const TextStyle(color: Colors.black)),
+        iconTheme: const IconThemeData(color: Colors.black),
         actions: [
           TextButton(
             onPressed: _selectAll,
             child: Text(
               _selectedPhotos.length == _photos.length ? "Deselect All" : "Select All",
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-          TextButton(
-            onPressed: _selectedPhotos.isEmpty ? null : () => _navigateToPreview(_selectedPhotos.toList()),
-            child: Text(
-              "Next (${_selectedPhotos.length})",
-              style: TextStyle(color: _selectedPhotos.isEmpty ? Colors.grey : Colors.white),
+              style: const TextStyle(color: Colors.green),
             ),
           ),
         ],
@@ -654,7 +703,7 @@ class _AlbumPhotoGridViewState extends State<AlbumPhotoGridView> {
                 child: Text(
                   date,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: Colors.black,
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                   ),
@@ -682,6 +731,20 @@ class _AlbumPhotoGridViewState extends State<AlbumPhotoGridView> {
             ],
           );
         },
+      ),
+      bottomNavigationBar: BottomAppBar(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: _selectedPhotos.isEmpty ? null : () => _navigateToPreview(_selectedPhotos.toList()),
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white, backgroundColor: Colors.green,
+              ),
+              child: Text("Process (${_selectedPhotos.length})"),
+            ),
+          ],
+        ),
       ),
     );
   }

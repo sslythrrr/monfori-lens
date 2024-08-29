@@ -77,7 +77,7 @@ class _CameraPageState extends State<CameraPage> {
       child: Container(
         height: MediaQuery.of(context).size.height * 0.2,
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
-        color: Colors.black.withOpacity(0.6),
+        color: Colors.black,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -92,7 +92,7 @@ class _CameraPageState extends State<CameraPage> {
 
   Widget _buildIconButton(IconData icon, Function() onPressed, {double size = 28}) {
     return IconButton(
-      icon: Icon(icon, color: Colors.white.withOpacity(0.8)),
+      icon: Icon(icon, color: Colors.lightBlue),
       iconSize: size,
       onPressed: onPressed,
     );
@@ -107,7 +107,7 @@ class _CameraPageState extends State<CameraPage> {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: Colors.white,
+            color: Colors.green,
             width: 3,
           ),
         ),
