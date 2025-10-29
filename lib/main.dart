@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:monforilens/ui/components/splash_screen.dart';
+import 'package:monforilens/ui/splash_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Monfori Lens',
+      title: 'MonforiLens',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         visualDensity: VisualDensity.adaptivePlatformDensity,

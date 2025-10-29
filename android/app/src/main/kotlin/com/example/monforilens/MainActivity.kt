@@ -1,4 +1,4 @@
-package com.example.monforilens
+package com.baechuxs.monforilens
 
 import io.flutter.embedding.android.FlutterActivity
 
