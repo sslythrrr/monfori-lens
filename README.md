@@ -1,4 +1,4 @@
-# MonforiLens
+# Monfori Lens
 
 A Flutter application designed to help users select, sort, rename, and share photos from their device gallery. The app allows for easy organization and batch processing of images.
 
